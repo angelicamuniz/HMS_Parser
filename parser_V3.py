@@ -88,20 +88,24 @@ def processa_estado(parent, children):
         if type(node) == lark.lexer.Token:
             if node.type == "STATE":
                 estado[0] = node.value
+                print("Detectamos um Token: ", node.value)
             else:
                 print("Token desconhecido")
+    
         elif type(node) == lark.tree.Tree:
+            print("Detectamos uma Tree: ", node.children[0].value)
             if node.data == "state":
                 estado[1].append(processa_estado(estado, node))
             elif node.data == "transition":
-                estado[3].append(processa_transicao(node.children)) #testar se tem estado inicial
+                estado[3].append(processa_transicao(node.children))
+                '''#testar se tem estado inicial'''
             elif node.data == "internal_transition":
                 estado[4].append(processa_transicao_interna(estado, node))
             else:
                 print("Árvore desconhecida: ", node.data)
         else:
             print("Tipo de nó desconhecido", type(node))
-
+    
     return estado
 
 def pretty(tree, indentacao=""):
@@ -117,4 +121,4 @@ def pretty(tree, indentacao=""):
 print(processa_transicao(tree.children[1].children[4].children))
 
 
-#pretty(tree)
+'''pretty(tree)'''

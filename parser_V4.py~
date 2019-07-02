@@ -122,16 +122,3 @@ print(processa_transicao(tree.children[1].children[4].children))
 
 
 '''pretty(tree)'''
-
-
-CABECALHO = """#include <avr/pgmspace.h>
-#include "ch.h"
-#include "hal.h"
-#include "chprintf.h"
-#include "event.h"
-#include "sm.h"
-#include "transitions.h"
-#include <string.h>
-"""
-
-

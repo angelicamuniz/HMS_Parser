@@ -63,10 +63,16 @@ cb_status fn_S1_cb(event_t ev)
                 return EVENT_HANDLED;
         case EXIT_EVENT:
                 return EVENT_HANDLED;
+	case INIT_EVENT:
+		fn_S1_init_tran();
+		return EVENT_HANDLED;
 	case EVENT_ev1:
 	case EVENT_ev2:
 	case EVENT_ev3:
 		fn_S1_S2_tran();
+		return EVENT_HANDLED;
+	case EVENT_EV1:
+		fn_S1_S21_tran();
 		return EVENT_HANDLED;
 	}
 	return EVENT_NOT_HANDLED;
@@ -134,11 +140,20 @@ cb_status fn_S2_cb(event_t ev)
                 return EVENT_HANDLED;
         case EXIT_EVENT:
                 return EVENT_HANDLED;
+	case EVENT_EV11:
+	case EVENT_EV22:
+	case EVENT_EV33:
+	case EVENT_EV44:
+		fn_S2_intern_0_tran();
+		return EVENT_HANDLED;
+	case INIT_EVENT:
+		fn_S2_init_tran();
+		return EVENT_HANDLED;
 	case EVENT_ev11:
 	case EVENT_ev22:
 	case EVENT_ev33:
 	case EVENT_ev44:
-		fn_S2_S2_tran();
+		fn_S2_intern_1_tran();
 		return EVENT_HANDLED;
 	}
 	return EVENT_NOT_HANDLED;

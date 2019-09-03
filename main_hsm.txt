@@ -16,5 +16,20 @@ enum {
 	ev33,
 	ev44,
 	ev0,
-	ev21
+	ev21,
+	EV
 };
+
+
+cb_status fn_cb(event_t ev);
+cb_status init_cb(event_t ev);
+
+cb_status fn_S1_cb(event_t ev);
+cb_status fn_S11_cb(event_t ev);
+cb_status fn_S111_cb(event_t ev);
+cb_status fn_S12_cb(event_t ev);
+cb_status fn_S121_cb(event_t ev);
+cb_status fn_S122_cb(event_t ev);
+cb_status fn_S2_cb(event_t ev);
+cb_status fn_S21_cb(event_t ev);
+cb_status fn_S22_cb(event_t ev);

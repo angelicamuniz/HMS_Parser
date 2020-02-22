@@ -172,103 +172,125 @@ state_list = ['S1', 'S11', 'S111', 'S12', 'S121', 'S122', 'S2', 'S21', 'S22']
 
 event_list = ['ev1', 'ev2', 'ev3', 'ev11', 'ev22', 'ev33', 'ev44', 'ev0', 'ev21', 'EV']
 
-transition_list = [['S1', '[*]', 'S11', [], [], []], ['S11', '[*]', 'S111', [], [], []], ['S12', '[*]', 'S122', [], [], []], ['S2', ['EV11', 'EV22', 'EV33', 'EV44'], ['"foo == 1"'], ['"foo = 0"']], ['S1', 'S2', ['ev1', 'ev2', 'ev3'], ['"foo == 0"'], ['"foo = 1"']], ['S1', 'S21', ['EV1'], [], []], ['S2', '[*]', 'S22', [], [], []], ['S2', ['ev11', 'ev22', 'ev33', 'ev44'], ['"foo == 1"'], ['"foo = 0"']], ['root', '[*]', 'S1', ['ev0'], [], ['"c = 1;"']], ['S21', 'S22', ['ev21'], ['"foo == 0"'], ['"foo = 1"']]]
+transition_list = [['S1', '[*]', 'S11', [], [], []], ['S11', '[*]', 'S111', [], [], []], ['S12', '[*]', 'S122', [], [], []]]#, ['S2', ['EV11', 'EV22', 'EV33', 'EV44'], ['"foo == 1"'], ['"foo = 0"']], ['S1', 'S2', ['ev1', 'ev2', 'ev3'], ['"foo == 0"'], ['"foo = 1"']], ['S1', 'S21', ['EV1'], [], []], ['S2', '[*]', 'S22', [], [], []], ['S2', ['ev11', 'ev22', 'ev33', 'ev44'], ['"foo == 1"'], ['"foo = 0"']], ['root', '[*]', 'S1', ['ev0'], [], ['"c = 1;"']], ['S21', 'S22', ['ev21'], ['"foo == 0"'], ['"foo = 1"']]]
 
 for event in transition_list[1][-3]:
     print (event)
 
-
-#Função que preenche a primeira parte do código main_hsm.
-#Includes de outras bibliotecas e lista de eventos
-
-#Depois alterar os nomes das funções e comentar
-def create_header_events (event_list):
-    main_file = open('main_hsm.txt','w') 
-    main_file.write ('''#include <avr/pgmspace.h>
-#include "ch.h"
-#include "hal.h"
-#include "chprintf.h"
-#include "event.h"
+#
+# Definimos primeiro as strings definindo as várias partes do código
+# em C.  Algumas s]ao strings puras, outras strings para formatação
+# (contendo {})
+#
+event_header_str = """#include "event.h"
 #include "sm.h"
-#include "transitions.h"
-#include <string.h>
 
-''')
-    main_file.write ('enum {\n\t' + event_list[0] + ' = USER_EVENT')
-    for event in event_list[1:]:
-        main_file.write(',\n\t' + event)
-    main_file.write('\n};')
-    main_file.close()
+"""
+event_enum_begin_str = """enum {{
+    {} = USER_EVENT,
+"""
+event_enum_body_str = """    {},
+"""
+event_enum_end_str = """};
 
-create_header_events(event_list)
+"""
 
-
-#Funcao que cria as funções de call back de cada estado.. cb_status 
-
-def create_cb_status(state_list):
-    main_file = open('main_hsm.txt','a')
-    main_file.write('''\n\ncb_status init_cb(event_t ev);\ncb_status fn_cb(event_t ev);\n''')
-    for state in state_list:
-        main_file.write('\ncb_status fn_' + state + '_cb(event_t ev);')
-    main_file.close()
-
-create_cb_status(state_list)
-
-
-#Funcao que cria o corpo das funções de call back dos estados e suas transições
-#Falta incluir o init [*]    Por enquanto está sendo ignorado
-
-def create_function_body(state_list, transition_list):
-    main_file = open('main_hsm.txt','a')
-    main_file.write('''
-
+cb_declaration_str = "cb_status fn_{}_cb(event_t ev);\n"
+cb_header_str = """
 cb_status init_cb(event_t ev)
 {
-        Top_init_tran();
-        return EVENT_HANDLED;
+    top_init_tran();
+    return EVENT_HANDLED;
 }
-
 
 cb_status fn_cb(event_t ev)
 {
-        switch(ev) {
-        case ENTRY_EVENT:
-            return EVENT_HANDLED;
-        case EXIT_EVENT:
-            return EVENT_HANDLED;
-        case INIT_EVENT:
-            fn_init_tran();
-            return EVENT_HANDLED;
-        }
-
-        return EVENT_NOT_HANDLED;
+    switch(ev) {
+    case ENTRY_EVENT:
+        return EVENT_HANDLED;
+    case EXIT_EVENT:
+        return EVENT_HANDLED;
+    case INIT_EVENT:
+        fn_init_tran();
+        return EVENT_HANDLED;
+    }
+    return EVENT_NOT_HANDLED;
 }
-''')
+
+"""
+
+cb_definition_begin_str = """cb_status fn_{}_cb(event_t ev)
+{{
+    switch(ev) {{
+    case ENTRY_EVENT:
+        return EVENT_HANDLED;
+    case EXIT_EVENT:
+        return EVENT_HANDLED;
+"""
+cb_definition_body1_str = """    case INIT_EVENT:
+        fn_{}_init_tran();
+        return EVENT_HANDLED;
+"""
+cb_definition_body2_str = """    case EVENT_{}:
+"""
+cb_definition_body3_str = """
+        fn_{}_{}_tran();
+        return EVENT_HANDLED;
+"""
+cb_definition_end_str = """    }
+    return EVENT_NOT_HANDLED;
+}
+
+"""
+
+#
+# Definimos agora os geradores que serão usados para criar o código linha por linha
+#
+def events_def(event_list):
+    """Generator function to generate the code lines for defining the
+events enum"""
+    yield event_header_str
+    yield event_enum_begin_str.format(event_list[0])
+    for event in event_list[1:]:
+        yield event_enum_body_str.format(event)
+    yield event_enum_end_str
+
+def cb_declarations_def(state_list):
+    """Generator dunction to generate the code lines for declaring the
+state callback functions"""
+    return (cb_declaration_str.format(state) for state in state_list)
+
+def cb_definitions_def(state_list, transition_list):
+    """Generator function to generate the code lines for defining the
+state callback functions"""
+    yield cb_header_str
     for state in state_list:
-        i = 1
-        main_file.write('\n\ncb_status fn_' + state + '_cb(event_t ev)' + '''
-{
-        switch(ev) {
-        case ENTRY_EVENT:
-            return EVENT_HANDLED;
-        case EXIT_EVENT:
-            return EVENT_HANDLED;''')
-        for transition in transition_list:
-            if transition[0] == state:
-                if transition [1] == '[*]':
-                    main_file.write('\n\t\tcase INIT_EVENT:\n\t\t\tfn_' + state + '_init_tran();\n\t\t\treturn EVENT_HANDLED;')
+        yield cb_definition_begin_str.format(state)
+        for transition_state, initial_state, final_state, event_list, _, _ in transition_list:
+            if transition_state == state:
+                if initial_state == '[*]':
+                    yield cb_definition_body1_str.format(state)
                 else:
-                    for event in transition[-3]:
-                        main_file.write('\n\t\tcase EVENT_' + event + ':')
-                    if transition[0] == transition[-4]:
-                        main_file.write('\n\t\t\t' + 'fn_' + transition[0] + '_intern_' + str(i) + '_tran();\n\t\t\treturn EVENT_HANDLED;')
-                        i = i + 1
+                    for event in event_list:
+                        yield cb_definition_body2_str.format(event)
+                    if transition_state == final_state:
+                        # Preciso entender melhor o que está acontecendo aqui
+                        print("ERROR: Describe error")
+                        # main_file.write('\n\t\t\t' + 'fn_' + transition[0] + '_intern_' + str(i) + '_tran();\n\t\t\treturn EVENT_HANDLED;')
                     else:
-                        main_file.write('\n\t\t\t' + 'fn_' + transition[0] + '_' + transition[-4] + '_tran();\n\t\t\treturn EVENT_HANDLED;')
-        main_file.write('\n\t\t}\n\t\treturn EVENT_NOT_HANDLED;\n}')
-    main_file.close()
-    
-create_function_body(state_list, transition_list)
+                        yield cb_definition_body3_str.format(transition_state, final_state)
+        yield cb_definition_end_str
+
+#
+# Agora, com todos os geradores definidos, podemos gerar o arquivo da máquina de estados
+#
+from itertools import chain
+
+with open('main_hsm.c', 'w') as f:
+    events_seq = events_def(event_list)
+    cb_decl_seq = cb_declarations_def(state_list)
+    cb_def_seq = cb_definitions_def(state_list, transition_list)
+    f.writelines(chain(events_seq, cb_decl_seq, cb_def_seq))
 
 
 #Transição interna precisa de fn_s2_s2_tran() ?

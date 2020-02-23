@@ -1,10 +1,12 @@
 import lark
 
 
+
+
 grammar = """root: (state | transition)*
 state: "state" STATE "{" (state | transition | internal_transition)* "}"
-internal_transition: ":" TRIGGER (("," TRIGGER)*)? ("[" GUARD "]")? ("/" BEHAVIOR)?
 transition: (STATE | ENDPOINT)? "->" (STATE | ENDPOINT) ":" (TRIGGER ("," TRIGGER)*)? (("[" GUARD "]")? ("/" BEHAVIOR)?)?
+internal_transition: ":" TRIGGER (("," TRIGGER)*)? ("[" GUARD "]")? ("/" BEHAVIOR)?
 
 STATE: CNAME
 TRIGGER: CNAME
@@ -19,7 +21,7 @@ ENDPOINT: "[*]"
 %import common.INT -> NUMBER
 %import common.WS
 %ignore WS"""
-json_parser = lark.Lark(grammar, start="root")
+parser = lark.Lark(grammar, start="root")
 
 
 text = """[*] -> S1 : ev0 / "c = 1;"
@@ -64,8 +66,39 @@ text = """[*] -> S1 : ev0 / "c = 1;"
 	}
     S21 -> S22 : ev21 ["foo == 0"] / "foo = 1"
 """
-tree = json_parser.parse(text)
+tree = parser.parse(text)
 #print(tree.pretty())
+
+
+
+
+def processa_token(tk):
+    print("TOKEN: type = {}, value = {}".format(tk.type, tk.value))
+
+def processa_arvore(a):
+    if a.data == "state":
+        state, *lst = a.children
+        print("STATE: {} - {} children".format(state, len(lst)))
+        for el in lst:
+            processa_arvore(el)
+    elif a.data == "transition":
+        src, dest, *rest = a.children
+        
+        print("TRANSITION: {} children".format(len(a.children)))
+        for el in a.children:
+            processa_token(el)
+    elif a.data == "internal_transition":
+        print("INTERNALTRANSITION: {} children".format(len(a.children)))
+    else:
+        print("UNKNOWN: {}".format(a.data))
+
+print("\n\n")
+for child in tree.children:
+    processa_arvore(child)
+print("\n\n")
+
+
+
 
 actions = {"root": None,
            "transition": None,
@@ -162,17 +195,40 @@ def pretty(tree, indentacao=""):
     Ficam como transições da root.'''
 
 #Nome do estado, Filhos, Pai, Transições, Transições internas
-root_state = processa_estado(None, tree.children)
+#root_state = processa_estado(None, tree.children)
 
 #Assumindo que já temos uma lista de estados, outra de transições e outra de eventos, faça o código que vai gerar os arquivos finais. Depois disso, implemente a parte do código que gerará essas listas.
 
 #Como ler os eventos de uma determinada transição
 
-state_list = ['S1', 'S11', 'S111', 'S12', 'S121', 'S122', 'S2', 'S21', 'S22']
+# Cada elemento / estado do dicionário de estados tem associado a si
+# uma lista com os seguintes itens: uma lista de listas onde cada
+# sublista representa as transições iniciais (vazia se o estado não
+# for um super-estado, múltiplas sublistas se houver diferentes
+# condições de guarda), outra lista de listas onde cada sublista
+# representa uma transição externa e uma outra lista de sublistas onde
+# cada sublista representa uma transição interna.  Uma sublista
+# representando uma transição inicial tem como elementos uma string
+# representando o sub-estado destino, uma string representando a
+# condição de guarda e uma string representando a ação associada.  Uma
+# sublista associada uma transição externa é formada por uma string
+# representando o estado-destino, uma lista de eventos que disparam a
+# transição, uma string representando a condição de gaurda e uma
+# string representando a ação associada à transição.  Por último, a
+# sublista associada a uma transição interna é composta de uma lista
+# de eventos que disparam a transição, uma string representando a
+# condição de guarda e uma string representando a ação.
+#
+# Um super-estado pode ser identificado pela sua lista não-nula de
+# transições internas
+state_dict = {'S1': [[], [], []]}
 
+# A lista abaixo não deveria ser um conjunto?
 event_list = ['ev1', 'ev2', 'ev3', 'ev11', 'ev22', 'ev33', 'ev44', 'ev0', 'ev21', 'EV']
 
-transition_list = [['S1', '[*]', 'S11', [], [], []], ['S11', '[*]', 'S111', [], [], []], ['S12', '[*]', 'S122', [], [], []]]#, ['S2', ['EV11', 'EV22', 'EV33', 'EV44'], ['"foo == 1"'], ['"foo = 0"']], ['S1', 'S2', ['ev1', 'ev2', 'ev3'], ['"foo == 0"'], ['"foo = 1"']], ['S1', 'S21', ['EV1'], [], []], ['S2', '[*]', 'S22', [], [], []], ['S2', ['ev11', 'ev22', 'ev33', 'ev44'], ['"foo == 1"'], ['"foo = 0"']], ['root', '[*]', 'S1', ['ev0'], [], ['"c = 1;"']], ['S21', 'S22', ['ev21'], ['"foo == 0"'], ['"foo = 1"']]]
+# As duas listas abaixo devem desaarecer?
+state_list = ['S1', 'S11', 'S111', 'S12', 'S121', 'S122', 'S2', 'S21', 'S22']
+transition_list = [['S1', '[*]', 'S11', [], [], []], ['S11', '[*]', 'S111', [], [], []], ['S12', '[*]', 'S122', [], [], []]], ['S2', ['EV11', 'EV22', 'EV33', 'EV44'], ['"foo == 1"'], ['"foo = 0"']], ['S1', 'S2', ['ev1', 'ev2', 'ev3'], ['"foo == 0"'], ['"foo = 1"']], ['S1', 'S21', ['EV1'], [], []], ['S2', '[*]', 'S22', [], [], []], ['S2', ['ev11', 'ev22', 'ev33', 'ev44'], ['"foo == 1"'], ['"foo = 0"']], ['root', '[*]', 'S1', ['ev0'], [], ['"c = 1;"']], ['S21', 'S22', ['ev21'], ['"foo == 0"'], ['"foo = 1"']]]
 
 for event in transition_list[1][-3]:
     print (event)

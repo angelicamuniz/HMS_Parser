@@ -1,6 +1,6 @@
 import lark
 
-
+#Definição da gramática:
 grammar = """root: (state | transition)*
 state: "state" STATE "{" (state | transition | internal_transition)* "}"
 internal_transition: ":" TRIGGER (("," TRIGGER)*)? ("[" GUARD "]")? ("/" BEHAVIOR)?
@@ -28,7 +28,7 @@ text = """[*] -> S1 : ev0 / "c = 1;"
 		[*] -> S11 :
 
 		state S11 {
-            [*] -> S111 :
+                        [*] -> S111 :
 			state S111 {
 
 			}
@@ -38,7 +38,7 @@ text = """[*] -> S1 : ev0 / "c = 1;"
 		}
 
 		state S12 {
-            [*] -> S122 :
+                        [*] -> S122 :
 			state S121 {
 
 			}
@@ -47,12 +47,12 @@ text = """[*] -> S1 : ev0 / "c = 1;"
 			}
 		}
 
-		-> S2 : ev1, ev2, ev3 ["foo == 0"] / "foo = 1"
+	-> S2 : ev1, ev2, ev3 ["foo == 0"] / "foo = 1"
         -> S21 : EV1
 	}
 
 	state S2 {
-        [*] -> S22 :
+                [*] -> S22 :
 		state S21 {
 
 		}
@@ -158,7 +158,7 @@ def pretty(tree, indentacao=""):
 
 '''pretty(tree)'''
 
-''' CORRIGIR: Transições realizadas externamente ao estado, não são incluídas devidamente no estado correspondente.
+''' CORRIGIR: Transições escritas externamente ao estado, não são incluídas devidamente no estado correspondente.
     Ficam como transições da root.'''
 
 #Nome do estado, Filhos, Pai, Transições, Transições internas
@@ -174,7 +174,7 @@ event_list = ['ev1', 'ev2', 'ev3', 'ev11', 'ev22', 'ev33', 'ev44', 'ev0', 'ev21'
 
 transition_list = [['S1', '[*]', 'S11', [], [], []], ['S11', '[*]', 'S111', [], [], []], ['S12', '[*]', 'S122', [], [], []], ['S2', ['EV11', 'EV22', 'EV33', 'EV44'], ['"foo == 1"'], ['"foo = 0"']], ['S1', 'S2', ['ev1', 'ev2', 'ev3'], ['"foo == 0"'], ['"foo = 1"']], ['S1', 'S21', ['EV1'], [], []], ['S2', '[*]', 'S22', [], [], []], ['S2', ['ev11', 'ev22', 'ev33', 'ev44'], ['"foo == 1"'], ['"foo = 0"']], ['root', '[*]', 'S1', ['ev0'], [], ['"c = 1;"']], ['S21', 'S22', ['ev21'], ['"foo == 0"'], ['"foo = 1"']]]
 
-for event in transition_list[1][-3]:
+for event in transition_list[4][-3]:
     print (event)
 
 

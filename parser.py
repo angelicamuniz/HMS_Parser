@@ -216,7 +216,6 @@ create_cb_status(state_list)
 
 
 #Funcao que cria o corpo das funções de call back dos estados e suas transições
-#Falta incluir o init [*]    Por enquanto está sendo ignorado
 
 def create_function_body(state_list, transition_list):
     main_file = open('main_hsm.txt','a')
@@ -250,22 +249,23 @@ cb_status fn_cb(event_t ev)
 {
         switch(ev) {
         case ENTRY_EVENT:
-            return EVENT_HANDLED;
+                return EVENT_HANDLED;
         case EXIT_EVENT:
-            return EVENT_HANDLED;''')
+                return EVENT_HANDLED;''')
         for transition in transition_list:
             if transition[0] == state:
                 if transition [1] == '[*]':
-                    main_file.write('\n\t\tcase INIT_EVENT:\n\t\t\tfn_' + state + '_init_tran();\n\t\t\treturn EVENT_HANDLED;')
+                    main_file.write('\n\tcase INIT_EVENT:\n\t\tfn_' + state + '_init_tran();\n\t\treturn EVENT_HANDLED;')
                 else:
                     for event in transition[-3]:
-                        main_file.write('\n\t\tcase EVENT_' + event + ':')
+                        main_file.write('\n\tcase EVENT_' + event + ':')
                     if transition[0] == transition[-4]:
-                        main_file.write('\n\t\t\t' + 'fn_' + transition[0] + '_intern_' + str(i) + '_tran();\n\t\t\treturn EVENT_HANDLED;')
+                        #Na transição interna não é necessário uma transição. Só deve ser tratada a condição de guarda e o behavior
+                        #main_file.write('\n\t\t' + 'fn_' + transition[0] + '_intern_' + str(i) + '_tran();\n\t\treturn EVENT_HANDLED;')
                         i = i + 1
                     else:
-                        main_file.write('\n\t\t\t' + 'fn_' + transition[0] + '_' + transition[-4] + '_tran();\n\t\t\treturn EVENT_HANDLED;')
-        main_file.write('\n\t\t}\n\t\treturn EVENT_NOT_HANDLED;\n}')
+                        main_file.write('\n\t\t' + 'fn_' + transition[0] + '_' + transition[-4] + '_tran();\n\t\treturn EVENT_HANDLED;')
+        main_file.write('\n\t}\n\treturn EVENT_NOT_HANDLED;\n}')
     main_file.close()
     
 create_function_body(state_list, transition_list)

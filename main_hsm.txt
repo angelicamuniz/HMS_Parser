@@ -60,132 +60,128 @@ cb_status fn_S1_cb(event_t ev)
 {
         switch(ev) {
         case ENTRY_EVENT:
-            return EVENT_HANDLED;
+                return EVENT_HANDLED;
         case EXIT_EVENT:
-            return EVENT_HANDLED;
-		case INIT_EVENT:
-			fn_S1_init_tran();
-			return EVENT_HANDLED;
-		case EVENT_ev1:
-		case EVENT_ev2:
-		case EVENT_ev3:
-			fn_S1_S2_tran();
-			return EVENT_HANDLED;
-		case EVENT_EV1:
-			fn_S1_S21_tran();
-			return EVENT_HANDLED;
-		}
-		return EVENT_NOT_HANDLED;
+                return EVENT_HANDLED;
+	case INIT_EVENT:
+		fn_S1_init_tran();
+		return EVENT_HANDLED;
+	case EVENT_ev1:
+	case EVENT_ev2:
+	case EVENT_ev3:
+		fn_S1_S2_tran();
+		return EVENT_HANDLED;
+	case EVENT_EV1:
+		fn_S1_S21_tran();
+		return EVENT_HANDLED;
+	}
+	return EVENT_NOT_HANDLED;
 }
 
 cb_status fn_S11_cb(event_t ev)
 {
         switch(ev) {
         case ENTRY_EVENT:
-            return EVENT_HANDLED;
+                return EVENT_HANDLED;
         case EXIT_EVENT:
-            return EVENT_HANDLED;
-		case INIT_EVENT:
-			fn_S11_init_tran();
-			return EVENT_HANDLED;
-		}
-		return EVENT_NOT_HANDLED;
+                return EVENT_HANDLED;
+	case INIT_EVENT:
+		fn_S11_init_tran();
+		return EVENT_HANDLED;
+	}
+	return EVENT_NOT_HANDLED;
 }
 
 cb_status fn_S111_cb(event_t ev)
 {
         switch(ev) {
         case ENTRY_EVENT:
-            return EVENT_HANDLED;
+                return EVENT_HANDLED;
         case EXIT_EVENT:
-            return EVENT_HANDLED;
-		}
-		return EVENT_NOT_HANDLED;
+                return EVENT_HANDLED;
+	}
+	return EVENT_NOT_HANDLED;
 }
 
 cb_status fn_S12_cb(event_t ev)
 {
         switch(ev) {
         case ENTRY_EVENT:
-            return EVENT_HANDLED;
+                return EVENT_HANDLED;
         case EXIT_EVENT:
-            return EVENT_HANDLED;
-		case INIT_EVENT:
-			fn_S12_init_tran();
-			return EVENT_HANDLED;
-		}
-		return EVENT_NOT_HANDLED;
+                return EVENT_HANDLED;
+	case INIT_EVENT:
+		fn_S12_init_tran();
+		return EVENT_HANDLED;
+	}
+	return EVENT_NOT_HANDLED;
 }
 
 cb_status fn_S121_cb(event_t ev)
 {
         switch(ev) {
         case ENTRY_EVENT:
-            return EVENT_HANDLED;
+                return EVENT_HANDLED;
         case EXIT_EVENT:
-            return EVENT_HANDLED;
-		}
-		return EVENT_NOT_HANDLED;
+                return EVENT_HANDLED;
+	}
+	return EVENT_NOT_HANDLED;
 }
 
 cb_status fn_S122_cb(event_t ev)
 {
         switch(ev) {
         case ENTRY_EVENT:
-            return EVENT_HANDLED;
+                return EVENT_HANDLED;
         case EXIT_EVENT:
-            return EVENT_HANDLED;
-		}
-		return EVENT_NOT_HANDLED;
+                return EVENT_HANDLED;
+	}
+	return EVENT_NOT_HANDLED;
 }
 
 cb_status fn_S2_cb(event_t ev)
 {
         switch(ev) {
         case ENTRY_EVENT:
-            return EVENT_HANDLED;
+                return EVENT_HANDLED;
         case EXIT_EVENT:
-            return EVENT_HANDLED;
-		case EVENT_EV11:
-		case EVENT_EV22:
-		case EVENT_EV33:
-		case EVENT_EV44:
-			fn_S2_intern_1_tran();
-			return EVENT_HANDLED;
-		case INIT_EVENT:
-			fn_S2_init_tran();
-			return EVENT_HANDLED;
-		case EVENT_ev11:
-		case EVENT_ev22:
-		case EVENT_ev33:
-		case EVENT_ev44:
-			fn_S2_intern_2_tran();
-			return EVENT_HANDLED;
-		}
-		return EVENT_NOT_HANDLED;
+                return EVENT_HANDLED;
+	case EVENT_EV11:
+	case EVENT_EV22:
+	case EVENT_EV33:
+	case EVENT_EV44:
+	case INIT_EVENT:
+		fn_S2_init_tran();
+		return EVENT_HANDLED;
+	case EVENT_ev11:
+	case EVENT_ev22:
+	case EVENT_ev33:
+	case EVENT_ev44:
+	}
+	return EVENT_NOT_HANDLED;
 }
 
 cb_status fn_S21_cb(event_t ev)
 {
         switch(ev) {
         case ENTRY_EVENT:
-            return EVENT_HANDLED;
+                return EVENT_HANDLED;
         case EXIT_EVENT:
-            return EVENT_HANDLED;
-		case EVENT_ev21:
-			fn_S21_S22_tran();
-			return EVENT_HANDLED;
-		}
-		return EVENT_NOT_HANDLED;
+                return EVENT_HANDLED;
+	case EVENT_ev21:
+		fn_S21_S22_tran();
+		return EVENT_HANDLED;
+	}
+	return EVENT_NOT_HANDLED;
 }
 
 cb_status fn_S22_cb(event_t ev)
 {
         switch(ev) {
         case ENTRY_EVENT:
-            return EVENT_HANDLED;
+                return EVENT_HANDLED;
         case EXIT_EVENT:
-            return EVENT_HANDLED;
-		}
-		return EVENT_NOT_HANDLED;
+                return EVENT_HANDLED;
+	}
+	return EVENT_NOT_HANDLED;
 }

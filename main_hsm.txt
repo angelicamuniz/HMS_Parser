@@ -69,11 +69,12 @@ cb_status fn_S1_cb(event_t ev)
 	case EVENT_ev1:
 	case EVENT_ev2:
 	case EVENT_ev3:
-		fn_S1_S2_tran();
+		if (foo == 0) {
+			foo = 1;
+			fn_S1_S2_tran();
+		}
 		return EVENT_HANDLED;
 	case EVENT_EV1:
-		fn_S1_S21_tran();
-		return EVENT_HANDLED;
 	}
 	return EVENT_NOT_HANDLED;
 }
@@ -169,7 +170,10 @@ cb_status fn_S21_cb(event_t ev)
         case EXIT_EVENT:
                 return EVENT_HANDLED;
 	case EVENT_ev21:
-		fn_S21_S22_tran();
+		if (foo == 1) {
+			foo = 2;
+			fn_S21_S22_tran();
+		}
 		return EVENT_HANDLED;
 	}
 	return EVENT_NOT_HANDLED;

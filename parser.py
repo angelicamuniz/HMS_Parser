@@ -266,8 +266,9 @@ cb_status fn_cb(event_t ev)
                         i = i + 1
                     else:
                         for guard in transition[-2]:
-                            print ("Detectada condição de guarda:",guard,"no estado:",state,"behavior:",transition[-1])
-                        main_file.write('\n\t\t' + 'fn_' + transition[0] + '_' + transition[-4] + '_tran();\n\t\treturn EVENT_HANDLED;')
+                            print ("Detectada condição de guarda:",guard,"no estado:",state,"behavior:",transition[-1][0][1:-1])
+                            main_file.write("\n\t\tif (" + guard[1:-1] + ") {\n\t\t\t" + transition[-1][0][1:-1] + ';\n\t\t\t' + 'fn_' + transition[0] + '_' + transition[-4] + '_tran();\n\t\t}\n\t\treturn EVENT_HANDLED;')
+                        #main_file.write('\n\t\t' + 'fn_' + transition[0] + '_' + transition[-4] + '_tran();\n\t\treturn EVENT_HANDLED;')
         main_file.write('\n\t}\n\treturn EVENT_NOT_HANDLED;\n}')
     main_file.close()
     
@@ -280,9 +281,4 @@ create_function_body(state_list, transition_list)
 
 #onde é mesmo que fn_init_tran() é implementada? Ou ela só é os dispatch da transição mesmo? 
 
-#SIM -> a condição de guarda é realizada no switch case com ifs
-#Falta implementar a condição de guarda. Tentar alterar o código do text para que não fique com "", como os ev2. Assim podemos colocar direto
-
 #Organizar em bibliotecas.
-
-#10/04/2020: olhando em como incluir a condição de guarda no código, parei em como pensar para que a condição de guarda seja colocada no if da forma correta. Pensar também em: só vamos chamar a função da transição se essa condição de guarda for satisfeita?

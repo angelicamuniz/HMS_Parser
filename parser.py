@@ -172,7 +172,7 @@ state_list = ['S1', 'S11', 'S111', 'S12', 'S121', 'S122', 'S2', 'S21', 'S22']
 
 event_list = ['ev1', 'ev2', 'ev3', 'ev11', 'ev22', 'ev33', 'ev44', 'ev0', 'ev21', 'EV']
 
-transition_list = [['S1', '[*]', 'S11', [], [], []], ['S11', '[*]', 'S111', [], [], []], ['S12', '[*]', 'S122', [], [], []], ['S2', ['EV11', 'EV22', 'EV33', 'EV44'], ['"foo == 1"'], ['"foo = 0"']], ['S1', 'S2', ['ev1', 'ev2', 'ev3'], ['"foo == 0"'], ['"foo = 1"']], ['S1', 'S21', ['EV1'], [], []], ['S2', '[*]', 'S22', [], [], []], ['S2', ['ev11', 'ev22', 'ev33', 'ev44'], ['"foo == 1"'], ['"foo = 0"']], ['root', '[*]', 'S1', ['ev0'], [], ['"c = 1;"']], ['S21', 'S22', ['ev21'], ['"foo == 0"'], ['"foo = 1"']]]
+transition_list = [['S1', '[*]', 'S11', [], [], []], ['S11', '[*]', 'S111', [], [], []], ['S12', '[*]', 'S122', [], [], []], ['S2', ['EV11', 'EV22', 'EV33', 'EV44'], ['"foo == 1"'], ['"foo = 0"']], ['S1', 'S2', ['ev1', 'ev2', 'ev3'], ['"foo == 0"'], ['"foo = 1"']], ['S1', 'S21', ['EV1'], [], []], ['S2', '[*]', 'S22', [], [], []], ['S2', ['ev11', 'ev22', 'ev33', 'ev44'], ['"foo == 1"'], ['"foo = 0"']], ['root', '[*]', 'S1', ['ev0'], [], ['"c = 1;"']], ['S21', 'S22', ['ev21'], ['"foo == 1"'], ['"foo = 2"']]]
 
 for event in transition_list[4][-3]:
     print (event)
@@ -253,6 +253,7 @@ cb_status fn_cb(event_t ev)
         case EXIT_EVENT:
                 return EVENT_HANDLED;''')
         for transition in transition_list:
+            #Fixando um estado para verificar suas transições:
             if transition[0] == state:
                 if transition [1] == '[*]':
                     main_file.write('\n\tcase INIT_EVENT:\n\t\tfn_' + state + '_init_tran();\n\t\treturn EVENT_HANDLED;')
@@ -264,6 +265,8 @@ cb_status fn_cb(event_t ev)
                         #main_file.write('\n\t\t' + 'fn_' + transition[0] + '_intern_' + str(i) + '_tran();\n\t\treturn EVENT_HANDLED;')
                         i = i + 1
                     else:
+                        for guard in transition[-2]:
+                            print ("Detectada condição de guarda:",guard,"no estado:",state,"behavior:",transition[-1])
                         main_file.write('\n\t\t' + 'fn_' + transition[0] + '_' + transition[-4] + '_tran();\n\t\treturn EVENT_HANDLED;')
         main_file.write('\n\t}\n\treturn EVENT_NOT_HANDLED;\n}')
     main_file.close()
@@ -280,4 +283,6 @@ create_function_body(state_list, transition_list)
 #SIM -> a condição de guarda é realizada no switch case com ifs
 #Falta implementar a condição de guarda. Tentar alterar o código do text para que não fique com "", como os ev2. Assim podemos colocar direto
 
-#Organizar em bibliotecas. 
+#Organizar em bibliotecas.
+
+#10/04/2020: olhando em como incluir a condição de guarda no código, parei em como pensar para que a condição de guarda seja colocada no if da forma correta. Pensar também em: só vamos chamar a função da transição se essa condição de guarda for satisfeita?

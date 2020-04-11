@@ -267,7 +267,7 @@ cb_status fn_cb(event_t ev)
                     else:
                         for guard in transition[-2]:
                             print ("Detectada condição de guarda:",guard,"no estado:",state,"behavior:",transition[-1][0][1:-1])
-                            main_file.write("\n\t\tif (" + guard[1:-1] + ") {\n\t\t\t" + transition[-1][0][1:-1] + ';\n\t\t\t' + 'fn_' + transition[0] + '_' + transition[-4] + '_tran();\n\t\t}\n\t\treturn EVENT_HANDLED;')
+                            main_file.write("\n\t\tif (" + guard[1:-1] + ") {\n\t\t\t" + transition[-1][0][1:-1] + ';\n\t\t\t' + 'fn_' + transition[0] + '_' + transition[-4] + '_tran();\n\t\t\treturn EVENT_HANDLED;\n\t\t}\n\t\tbreak;')
                         #main_file.write('\n\t\t' + 'fn_' + transition[0] + '_' + transition[-4] + '_tran();\n\t\treturn EVENT_HANDLED;')
         main_file.write('\n\t}\n\treturn EVENT_NOT_HANDLED;\n}')
     main_file.close()

@@ -72,8 +72,9 @@ cb_status fn_S1_cb(event_t ev)
 		if (foo == 0) {
 			foo = 1;
 			fn_S1_S2_tran();
+			return EVENT_HANDLED;
 		}
-		return EVENT_HANDLED;
+		break;
 	case EVENT_EV1:
 	}
 	return EVENT_NOT_HANDLED;
@@ -173,8 +174,9 @@ cb_status fn_S21_cb(event_t ev)
 		if (foo == 1) {
 			foo = 2;
 			fn_S21_S22_tran();
+			return EVENT_HANDLED;
 		}
-		return EVENT_HANDLED;
+		break;
 	}
 	return EVENT_NOT_HANDLED;
 }

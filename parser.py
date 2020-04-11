@@ -274,11 +274,6 @@ cb_status fn_cb(event_t ev)
     
 create_function_body(state_list, transition_list)
 
-
-#Transição interna precisa de fn_s2_s2_tran() ?
-#SIM  (?)  ->    se tiver duas transicoes internas, estarão com o mesmo nome --->  CORRIGIDO
-    #Correção de Hermano: Não precisa da transição. Só faz o que deve ser feito e pronto (condição de guarda e ação). Não tem entry nem exit
-
 #onde é mesmo que fn_init_tran() é implementada? Ou ela só é os dispatch da transição mesmo? 
 
 #Organizar em bibliotecas.

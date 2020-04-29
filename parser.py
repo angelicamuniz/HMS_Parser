@@ -26,44 +26,44 @@ parser = lark.Lark(grammar, start="root")
 
 text = """[*] -> S1 : ev0 / "c = 1;"
 
-	state S1 {
-		[*] -> S11 :
+    state S1 {
+        [*] -> S11 :
 
-		state S11 {
+        state S11 {
             [*] -> S111 :
-			state S111 {
+            state S111 {
 
-			}
-			state S112 {
+            }
+            state S112 {
 
-			}
-		}
+            }
+        }
 
-		state S12 {
+        state S12 {
             [*] -> S122 :
-			state S121 {
+            state S121 {
 
-			}
-			state S122 {
+            }
+            state S122 {
 
-			}
-		}
+            }
+        }
 
-		-> S2 : ev1, ev2, ev3 ["foo == 0"] / "foo = 1"
+        -> S2 : ev1, ev2, ev3 ["foo == 0"] / "foo = 1"
         -> S21 : EV1
-	}
+    }
 
-	state S2 {
+    state S2 {
         [*] -> S22 :
-		state S21 {
+        state S21 {
 
-		}
-		state S22 {
+        }
+        state S22 {
 
-		}
+        }
          : ev11, ev22, ev33, ev44 ["foo == 1"] / "foo = 0"
-         : EV11, EV22, EV33, EV44 ["foo == 1"] / "foo = 0"
-	}
+        -> S1 : ev3 ["foo == 0"] / "foo = 1"
+    }
     S21 -> S22 : ev21 ["foo == 0"] / "foo = 1"
 """
 tree = parser.parse(text)
@@ -202,26 +202,74 @@ def pretty(tree, indentacao=""):
 #Como ler os eventos de uma determinada transição
 
 # Cada elemento / estado do dicionário de estados tem associado a si
-# uma lista com os seguintes itens: uma lista de listas onde cada
-# sublista representa as transições iniciais (vazia se o estado não
-# for um super-estado, múltiplas sublistas se houver diferentes
-# condições de guarda), outra lista de listas onde cada sublista
-# representa uma transição externa e uma outra lista de sublistas onde
-# cada sublista representa uma transição interna.  Uma sublista
-# representando uma transição inicial tem como elementos uma string
-# representando o sub-estado destino, uma string representando a
-# condição de guarda e uma string representando a ação associada.  Uma
-# sublista associada uma transição externa é formada por uma string
-# representando o estado-destino, uma lista de eventos que disparam a
-# transição, uma string representando a condição de gaurda e uma
-# string representando a ação associada à transição.  Por último, a
-# sublista associada a uma transição interna é composta de uma lista
-# de eventos que disparam a transição, uma string representando a
-# condição de guarda e uma string representando a ação.
+# uma lista com os seguintes itens:
 #
-# Um super-estado pode ser identificado pela sua lista não-nula de
-# transições internas
-state_dict = {'S1': [[], [], []]}
+#     - um dicionário para representar as transições iniciais
+#     - um dicionário para representar as transições externas
+#     - um dicionário para representar as transições internas
+#     - uma lista de strings representando os subestados do estado
+#
+# As chaves desses dicionários são aqueles elementos que identificam
+# de forma única as respectivas transições.  No primeiro dicionário,
+# as chaves são as strings representando as condições de guarda
+# associadas às várias transições iniciais.  Esse dicionário será
+# vazio se o estado não for um super-estado.  Se houver apenas uma
+# transição inicial, caso em que necessariamente não haveria condição
+# de guarda, a chave seria a string vazia. Cada chave tem associada a
+# si uma lista (potencialmente vazia) com duas strings, uma
+# representando o estado-destino e outra, a ação.
+#
+# O segundo e o terceiro dicionários tem como chaves tuplas de duas
+# strings representando o evento e a condição de guarda associada (se
+# não houver condição de guarda a segunda string será a string vazia).
+# No caso do dicionário relativo às transições externas, cada chave
+# tem associada a si uma tupla consistindo de duas strings, uma
+# representando o estado-destino e a outra a ação associada à
+# transição.
+#
+# Por último, cada chave do terceiro dicionário está associada a uma
+# string representando a ação da transição interna.
+#
+# O quarto elemento dos itens acima é a lista de strings representando
+# os subestados.  Esta lista pode ser vazia se o estado não for um
+# superestado.  Cada string nesta lista representa um subestado e
+# também é uma chave do dicionário de estados.
+#
+# Só lembrando, um super-estado pode ser identificado pelo seu
+# dicionário não-nulo de transições internas
+state_dict = {"S2": [
+    # Transições iniciais
+    {"": ["S22", ""]},
+    # Transições externas"
+    {("ev3", "foo == 0"): ["S1", "foo = 1"]},
+    # Transições internas
+    {("ev11", "foo == 1"): "foo = 0",
+     ("ev22", "foo == 1"): "foo = 0",
+     ("ev33", "foo == 1"): "foo = 0",
+     ("ev44", "foo == 1"): "foo = 0",
+    },
+    # Lista de subestados
+    ["S21", "S22"]],
+    # Falta fazer os estados abaixo
+              "S21": [
+    # Transições iniciais
+    {},
+    # Transições externas"
+    {},
+    # Transições internas
+    {},
+    # Lista de subestados
+    []],
+              "S22": [
+    # Transições iniciais
+    {},
+    # Transições externas"
+    {},
+    # Transições internas
+    {},
+    # Lista de subestados
+    []]
+}
 
 # A lista abaixo não deveria ser um conjunto?
 event_list = ['ev1', 'ev2', 'ev3', 'ev11', 'ev22', 'ev33', 'ev44', 'ev0', 'ev21', 'EV']

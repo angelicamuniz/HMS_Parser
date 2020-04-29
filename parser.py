@@ -237,6 +237,10 @@ def pretty(tree, indentacao=""):
 #
 # Só lembrando, um super-estado pode ser identificado pelo seu
 # dicionário não-nulo de transições internas
+#
+# Além do dicionário de estados, acredito que seja útil, embora não
+# necessário, um conjunto com todos os eventos encontrados
+#
 state_dict = {"S2": [
     # Transições iniciais
     {"": ["S22", ""]},

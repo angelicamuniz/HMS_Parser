@@ -1,6 +1,6 @@
 import lark
 
-#Definição da gramática:
+# Definição da gramática:
 grammar = """root: (state | transition)*
 state: "state" STATE "{" (state | transition | internal_transition)* "}"
 internal_transition: ":" TRIGGER (("," TRIGGER)*)? ("[" GUARD "]")? ("/" BEHAVIOR)?
@@ -24,71 +24,75 @@ json_parser = lark.Lark(grammar, start="root")
 
 text = """[*] -> S1 : ev0 / "c = 1;"
 
-	state S1 {
-		[*] -> S11 :
+    state S1 {
+        [*] -> S11 :
 
-		state S11 {
+        state S11 {
                         [*] -> S111 :
-			state S111 {
+            state S111 {
 
-			}
-			state S112 {
+            }
+            state S112 {
 
-			}
-		}
+            }
+        }
 
-		state S12 {
+        state S12 {
                         [*] -> S122 :
-			state S121 {
+            state S121 {
 
-			}
-			state S122 {
+            }
+            state S122 {
 
-			}
-		}
+            }
+        }
 
-	-> S2 : ev1, ev2, ev3 ["foo == 0"] / "foo = 1"
+    -> S2 : ev1, ev2, ev3 ["foo == 0"] / "foo = 1"
         -> S21 : EV1
-	}
+    }
 
-	state S2 {
+    state S2 {
                 [*] -> S22 :
-		state S21 {
+        state S21 {
 
-		}
-		state S22 {
+        }
+        state S22 {
 
-		}
+        }
          : ev11, ev22, ev33, ev44 ["foo == 1"] / "foo = 0"
          : EV11, EV22, EV33, EV44 ["foo == 1"] / "foo = 0"
-	}
+    }
     S21 -> S22 : ev21 ["foo == 0"] / "foo = 1"
 """
 tree = json_parser.parse(text)
-#print(tree.pretty())
+# print(tree.pretty())
 
 actions = {"root": None,
            "transition": None,
            "state": None}
 
+
 def processa_transicao(children, current_state):
-    #print("Children is ", children)
+    # print("Children is ", children)
     if children[1].type in ["STATE", "ENDPOINT"]:
-        #Caso em que a descrição da transicao é: S1 -> S2...
-        print ('children[0] é:', children[0], children[0].type)
+        # Caso em que a descrição da transicao é: S1 -> S2...
+        print('children[0] é:', children[0], children[0].type)
         if children[0].type in ["ENDPOINT"]:
             if current_state == '':
                 current_state = 'root'
-            transicao = [current_state, children[0].value, children[1].value, [], [], []]   #Estado inicial, init?, Estado final, Trigger, Guard, Behavior
+            # Estado inicial, init?, Estado final, Trigger, Guard, Behavior
+            transicao = [current_state, children[0].value,
+                         children[1].value, [], [], []]
         else:
-            transicao = [children[0].value, children[1].value, [], [], []]   #Estado inicial, Estado final, Trigger, Guard, Behavior
+            # Estado inicial, Estado final, Trigger, Guard, Behavior
+            transicao = [children[0].value, children[1].value, [], [], []]
         children = children[1:]
     else:
-        #Caso em que a descrição da transicao é: -> S2...
+        # Caso em que a descrição da transicao é: -> S2...
         transicao = [current_state, children[0].value, [], [], []]
         print('Est atual:', current_state, 'Est final:', children[0].value)
     for node in children[1:]:
-        #Alterei a localização do trigger, guard e behavior para serem encontrados de trás para frente, por causa da inclusão de um novo campo quando há transição init
+        # Alterei a localização do trigger, guard e behavior para serem encontrados de trás para frente, por causa da inclusão de um novo campo quando há transição init
         if node.type == "TRIGGER":
             transicao[-3].append(node.value)
         elif node.type == "GUARD":
@@ -100,9 +104,11 @@ def processa_transicao(children, current_state):
 
     return transicao
 
+
 def processa_transicao_interna(children, current_state):
-    #print("Transição interna detectada.", children)
-    transicao_interna = [current_state, [], [], []]   #Nome do estado, Trigger, Guard, Behavior
+    # print("Transição interna detectada.", children)
+    # Nome do estado, Trigger, Guard, Behavior
+    transicao_interna = [current_state, [], [], []]
     for node in children:
         if node.type == "TRIGGER":
             transicao_interna[1].append(node.value)
@@ -114,37 +120,42 @@ def processa_transicao_interna(children, current_state):
             print("Tipo de nó desconhecido", type(node))
 
     return transicao_interna
-    
+
 
 def processa_estado(parent, children):
-    estado = ["", [], parent, [], []]   #Nome do estado, Filhos, Pai, Transições, Transições internas
+    # Nome do estado, Filhos, Pai, Transições, Transições internas
+    estado = ["", [], parent, [], []]
     for node in children:
         if type(node) == lark.lexer.Token:
             if node.type == "STATE":
                 estado[0] = node.value
-                #print("Detectamos um Token: ", node.value)
+                # print("Detectamos um Token: ", node.value)
             else:
                 print("Token desconhecido")
-    
+
         elif type(node) == lark.tree.Tree:
-            #print("Detectamos uma Tree: ", node.children[0].value)
+            # print("Detectamos uma Tree: ", node.children[0].value)
             if node.data == "state":
                 estado[1].append(processa_estado(estado[0], node.children))
             elif node.data == "transition":
-                estado[3].append(processa_transicao(node.children, estado[0]))  #já envia a lista de filhos
+                # já envia a lista de filhos
+                estado[3].append(processa_transicao(node.children, estado[0]))
                 '''#testar se tem estado inicial'''
             elif node.data == "internal_transition":
-                estado[4].append(processa_transicao_interna(node.children, estado[0]))
+                estado[4].append(processa_transicao_interna(
+                    node.children, estado[0]))
             else:
                 print("Árvore desconhecida: ", node.data)
         else:
             print("Tipo de nó desconhecido", type(node))
-    
+
     return estado
 
-#Imprime a árvore
+# Imprime a árvore
+
+
 def pretty(tree, indentacao=""):
-   # actions[tree.data](tree.children)
+    # actions[tree.data](tree.children)
     print(indentacao + "Data: {}".format(tree.data))
     for node in tree.children:
         if type(node) == lark.tree.Tree:
@@ -152,6 +163,7 @@ def pretty(tree, indentacao=""):
             pretty(node, indentacao + "   ")
         else:
             print("{}Child: {}".format(indentacao, node))
+
 
 '''print(processa_transicao(tree.children[1].children[4].children))'''
 
@@ -161,30 +173,32 @@ def pretty(tree, indentacao=""):
 ''' CORRIGIR: Transições escritas externamente ao estado, não são incluídas devidamente no estado correspondente.
     Ficam como transições da root.'''
 
-#Nome do estado, Filhos, Pai, Transições, Transições internas
+# Nome do estado, Filhos, Pai, Transições, Transições internas
 root_state = processa_estado(None, tree.children)
 
-#Assumindo que já temos uma lista de estados, outra de transições e outra de eventos, faça o código que vai gerar os arquivos finais. Depois disso, implemente a parte do código que gerará essas listas.
+# Assumindo que já temos uma lista de estados, outra de transições e outra de eventos, faça o código que vai gerar os arquivos finais. Depois disso, implemente a parte do código que gerará essas listas.
 
-#Como ler os eventos de uma determinada transição
+# Como ler os eventos de uma determinada transição
 
 state_list = ['S1', 'S11', 'S111', 'S12', 'S121', 'S122', 'S2', 'S21', 'S22']
 
-event_list = ['ev1', 'ev2', 'ev3', 'ev11', 'ev22', 'ev33', 'ev44', 'ev0', 'ev21', 'EV']
+event_list = ['ev1', 'ev2', 'ev3', 'ev11',
+              'ev22', 'ev33', 'ev44', 'ev0', 'ev21', 'EV']
 
-transition_list = [['S1', '[*]', 'S11', [], [], []], ['S11', '[*]', 'S111', [], [], []], ['S12', '[*]', 'S122', [], [], []], ['S2', ['EV11', 'EV22', 'EV33', 'EV44'], ['"foo == 1"'], ['"foo = 0"']], ['S1', 'S2', ['ev1', 'ev2', 'ev3'], ['"foo == 0"'], ['"foo = 1"']], ['S1', 'S21', ['EV1'], [], []], ['S2', '[*]', 'S22', [], [], []], ['S2', ['ev11', 'ev22', 'ev33', 'ev44'], ['"foo == 1"'], ['"foo = 0"']], ['root', '[*]', 'S1', ['ev0'], [], ['"c = 1;"']], ['S21', 'S22', ['ev21'], ['"foo == 1"'], ['"foo = 2"']]]
+transition_list = [['S1', '[*]', 'S11', [], [], []], ['S11', '[*]', 'S111', [], [], []], ['S12', '[*]', 'S122', [], [], []], ['S2', ['EV11', 'EV22', 'EV33', 'EV44'], ['"foo == 1"'], ['"foo = 0"']], ['S1', 'S2', ['ev1', 'ev2', 'ev3'], ['"foo == 0"'], ['"foo = 1"']],
+                   ['S1', 'S21', ['EV1'], [], []], ['S2', '[*]', 'S22', [], [], []], ['S2', ['ev11', 'ev22', 'ev33', 'ev44'], ['"foo == 1"'], ['"foo = 0"']], ['root', '[*]', 'S1', ['ev0'], [], ['"c = 1;"']], ['S21', 'S22', ['ev21'], ['"foo == 1"'], ['"foo = 2"']]]
 
 for event in transition_list[4][-3]:
-    print (event)
+    print(event)
 
 
-#Função que preenche a primeira parte do código main_hsm.
-#Includes de outras bibliotecas e lista de eventos
+# Função que preenche a primeira parte do código main_hsm.
+# Includes de outras bibliotecas e lista de eventos
 
-#Depois alterar os nomes das funções e comentar
-def create_header_events (event_list):
-    main_file = open('main_hsm.txt','w') 
-    main_file.write ('''#include <avr/pgmspace.h>
+# Depois alterar os nomes das funções e comentar
+def create_header_events(event_list):
+    main_file = open('main_hsm.txt', 'w')
+    main_file.write('''#include <avr/pgmspace.h>
 #include "ch.h"
 #include "hal.h"
 #include "chprintf.h"
@@ -194,31 +208,34 @@ def create_header_events (event_list):
 #include <string.h>
 
 ''')
-    main_file.write ('enum {\n\t' + event_list[0] + ' = USER_EVENT')
+    main_file.write('enum {\n\t' + event_list[0] + ' = USER_EVENT')
     for event in event_list[1:]:
         main_file.write(',\n\t' + event)
     main_file.write('\n};')
     main_file.close()
 
+
 create_header_events(event_list)
 
 
-#Funcao que cria as funções de call back de cada estado.. cb_status 
+# Funcao que cria as funções de call back de cada estado.. cb_status
 
 def create_cb_status(state_list):
-    main_file = open('main_hsm.txt','a')
-    main_file.write('''\n\ncb_status init_cb(event_t ev);\ncb_status fn_cb(event_t ev);\n''')
+    main_file = open('main_hsm.txt', 'a')
+    main_file.write(
+        '''\n\ncb_status init_cb(event_t ev);\ncb_status fn_cb(event_t ev);\n''')
     for state in state_list:
         main_file.write('\ncb_status fn_' + state + '_cb(event_t ev);')
     main_file.close()
 
+
 create_cb_status(state_list)
 
 
-#Funcao que cria o corpo das funções de call back dos estados e suas transições
+# Funcao que cria o corpo das funções de call back dos estados e suas transições
 
 def create_function_body(state_list, transition_list):
-    main_file = open('main_hsm.txt','a')
+    main_file = open('main_hsm.txt', 'a')
     main_file.write('''
 
 cb_status init_cb(event_t ev)
@@ -253,27 +270,31 @@ cb_status fn_cb(event_t ev)
         case EXIT_EVENT:
                 return EVENT_HANDLED;''')
         for transition in transition_list:
-            #Fixando um estado para verificar suas transições:
+            # Fixando um estado para verificar suas transições:
             if transition[0] == state:
-                if transition [1] == '[*]':
-                    main_file.write('\n\tcase INIT_EVENT:\n\t\tfn_' + state + '_init_tran();\n\t\treturn EVENT_HANDLED;')
+                if transition[1] == '[*]':
+                    main_file.write('\n\tcase INIT_EVENT:\n\t\tfn_' +
+                                    state + '_init_tran();\n\t\treturn EVENT_HANDLED;')
                 else:
                     for event in transition[-3]:
                         main_file.write('\n\tcase EVENT_' + event + ':')
                     if transition[0] == transition[-4]:
-                        #Na transição interna não é necessário uma transição. Só deve ser tratada a condição de guarda e o behavior
-                        #main_file.write('\n\t\t' + 'fn_' + transition[0] + '_intern_' + str(i) + '_tran();\n\t\treturn EVENT_HANDLED;')
+                        # Na transição interna não é necessário uma transição. Só deve ser tratada a condição de guarda e o behavior
+                        # main_file.write('\n\t\t' + 'fn_' + transition[0] + '_intern_' + str(i) + '_tran();\n\t\treturn EVENT_HANDLED;')
                         i = i + 1
                     else:
                         for guard in transition[-2]:
-                            print ("Detectada condição de guarda:",guard,"no estado:",state,"behavior:",transition[-1][0][1:-1])
-                            main_file.write("\n\t\tif (" + guard[1:-1] + ") {\n\t\t\t" + transition[-1][0][1:-1] + ';\n\t\t\t' + 'fn_' + transition[0] + '_' + transition[-4] + '_tran();\n\t\t\treturn EVENT_HANDLED;\n\t\t}\n\t\tbreak;')
-                        #main_file.write('\n\t\t' + 'fn_' + transition[0] + '_' + transition[-4] + '_tran();\n\t\treturn EVENT_HANDLED;')
+                            print("Detectada condição de guarda:", guard, "no estado:",
+                                  state, "behavior:", transition[-1][0][1:-1])
+                            main_file.write("\n\t\tif (" + guard[1:-1] + ") {\n\t\t\t" + transition[-1][0][1:-1] + ';\n\t\t\t' + 'fn_' +
+                                            transition[0] + '_' + transition[-4] + '_tran();\n\t\t\treturn EVENT_HANDLED;\n\t\t}\n\t\tbreak;')
+                        # main_file.write('\n\t\t' + 'fn_' + transition[0] + '_' + transition[-4] + '_tran();\n\t\treturn EVENT_HANDLED;')
         main_file.write('\n\t}\n\treturn EVENT_NOT_HANDLED;\n}')
     main_file.close()
-    
+
+
 create_function_body(state_list, transition_list)
 
-#onde é mesmo que fn_init_tran() é implementada? Ou ela só é os dispatch da transição mesmo? 
+# Onde é mesmo que fn_init_tran() é implementada? Ou ela só é os dispatch da transição mesmo?
 
-#Organizar em bibliotecas.
+# Organizar em bibliotecas.

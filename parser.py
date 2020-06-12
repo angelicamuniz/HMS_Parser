@@ -316,61 +316,76 @@ def create_cb_status(state_list):
 
 create_cb_status(state_list)
 
+cb_header_str = """
+cb_status init_cb(event_t ev)
+{
+    top_init_tran();
+    return EVENT_HANDLED;
+}
+cb_status fn_cb(event_t ev)
+{
+    switch(ev) {
+    case ENTRY_EVENT:
+        return EVENT_HANDLED;
+    case EXIT_EVENT:
+        return EVENT_HANDLED;
+    case INIT_EVENT:
+        fn_init_tran();
+        return EVENT_HANDLED;
+    }
+    return EVENT_NOT_HANDLED;
+}
+"""
+cb_definition_begin_str = """
+
+cb_status fn_{}_cb(event_t ev)
+{{
+    switch(ev) {{
+    case ENTRY_EVENT:
+        return EVENT_HANDLED;
+    case EXIT_EVENT:
+        return EVENT_HANDLED;"""
+cb_definition_body1_str = """
+    case INIT_EVENT:
+        fn_{}_init_tran();
+        return EVENT_HANDLED;"""
+cb_definition_body2_str = """
+    case EVENT_{}:"""
+cb_definition_body3_str = """
+        if ({}) {{
+            {};
+            fn_{}_{}_tran();
+            return EVENT_HANDLED;
+        }}
+        break;"""
 # Funcao que cria o corpo das funções de call back dos estados e suas transições
 def create_function_body(state_list, transition_list):
     main_file = open('main_hsm.txt', 'a')
-    main_file.write('''
-
-cb_status init_cb(event_t ev)
-{
-        Top_init_tran();
-        return EVENT_HANDLED;
-}
-
-
-cb_status fn_cb(event_t ev)
-{
-        switch(ev) {
-        case ENTRY_EVENT:
-            return EVENT_HANDLED;
-        case EXIT_EVENT:
-            return EVENT_HANDLED;
-        case INIT_EVENT:
-            fn_init_tran();
-            return EVENT_HANDLED;
-        }
-
-        return EVENT_NOT_HANDLED;
-}
-''')
+    main_file.write(cb_header_str)
     for state in state_list:
         i = 1
-        main_file.write('\n\ncb_status fn_' + state + '_cb(event_t ev)' + '''
-{
-        switch(ev) {
-        case ENTRY_EVENT:
-                return EVENT_HANDLED;
-        case EXIT_EVENT:
-                return EVENT_HANDLED;''')
+        main_file.write(cb_definition_begin_str.format(state))
         for transition in transition_list:
             # Fixando um estado para verificar suas transições:
             if transition[0] == state:
+                # Testando se é uma transição inicial
                 if transition[1] == '[*]':
-                    main_file.write('\n\tcase INIT_EVENT:\n\t\tfn_' +
-                                    state + '_init_tran();\n\t\treturn EVENT_HANDLED;')
+                    main_file.write(cb_definition_body1_str.format(state))
                 else:
+                    # Os eventos que disparam a transição estão na posição -3 da lista de eventos
                     for event in transition[-3]:
-                        main_file.write('\n\tcase EVENT_' + event + ':')
+                        main_file.write(cb_definition_body2_str.format(event))
+                    # Testando se é uma transição interna
                     if transition[0] == transition[-4]:
-                        # Na transição interna não é necessário uma transição. Só deve ser tratada a condição de guarda e o behavior
-                        # main_file.write('\n\t\t' + 'fn_' + transition[0] + '_intern_' + str(i) + '_tran();\n\t\treturn EVENT_HANDLED;')
+                        # Na transição interna não é necessário uma transição.
+                        # Só deve ser tratada a condição de guarda e o behavior
+                        # Implementar o descrito acima.
                         i = i + 1
                     else:
                         for guard in transition[-2]:
                             print("Detectada condição de guarda:", guard, "no estado:",
                                   state, "behavior:", transition[-1][0][1:-1])
-                            main_file.write("\n\t\tif (" + guard[1:-1] + ") {\n\t\t\t" + transition[-1][0][1:-1] + ';\n\t\t\t' + 'fn_' +
-                                            transition[0] + '_' + transition[-4] + '_tran();\n\t\t\treturn EVENT_HANDLED;\n\t\t}\n\t\tbreak;')
+                            main_file.write(cb_definition_body3_str.format(guard[1:-1], transition[-1][0][1:-1], transition[0], transition[-4]))
                         # main_file.write('\n\t\t' + 'fn_' + transition[0] + '_' + transition[-4] + '_tran();\n\t\treturn EVENT_HANDLED;')
         main_file.write('\n\t}\n\treturn EVENT_NOT_HANDLED;\n}')
     main_file.close()
@@ -378,6 +393,7 @@ cb_status fn_cb(event_t ev)
 
 create_function_body(state_list, transition_list)
 
-# Onde é mesmo que fn_init_tran() é implementada? Ou ela só é os dispatch da transição mesmo?
+# Onde é mesmo que fn_init_tran() é implementada?
+# Ou ela só é os dispatch da transição mesmo?
 
 # Organizar em bibliotecas.

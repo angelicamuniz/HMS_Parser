@@ -299,20 +299,24 @@ def create_header_events(event_list):
 create_header_events(event_list)
 
 # Funcao que cria as funções de call back de cada estado.. cb_status
+cb_declaration_init_str = '''
+
+cb_status init_cb(event_t ev);
+cb_status fn_cb(event_t ev);
+'''
+cb_declaration_str = "cb_status fn_{}_cb(event_t ev);\n"
 def create_cb_status(state_list):
     main_file = open('main_hsm.txt', 'a')
-    main_file.write(
-        '''\n\ncb_status init_cb(event_t ev);\ncb_status fn_cb(event_t ev);\n''')
+    main_file.write(cb_declaration_init_str)
+    # main_file.write(
+    #     '''\n\ncb_status init_cb(event_t ev);\ncb_status fn_cb(event_t ev);\n''')
     for state in state_list:
-        main_file.write('\ncb_status fn_' + state + '_cb(event_t ev);')
+        main_file.write(cb_declaration_str.format(state))
     main_file.close()
-
 
 create_cb_status(state_list)
 
-
 # Funcao que cria o corpo das funções de call back dos estados e suas transições
-
 def create_function_body(state_list, transition_list):
     main_file = open('main_hsm.txt', 'a')
     main_file.write('''

@@ -265,14 +265,9 @@ transition_list = [['S1', '[*]', 'S11', [], [], []], ['S11', '[*]', 'S111', [], 
 
 
 # String que representa a inclusão de outras bibliotecas
-event_header_str = '''#include <avr/pgmspace.h>
-#include "ch.h"
-#include "hal.h"
-#include "chprintf.h"
-#include "event.h"
+event_header_str = '''#include "event.h"
 #include "sm.h"
 #include "transitions.h"
-#include <string.h>
 
 '''
 
@@ -363,7 +358,6 @@ def create_function_body(state_list, transition_list):
     main_file = open('main_hsm.txt', 'a')
     main_file.write(cb_header_str)
     for state in state_list:
-        i = 1
         main_file.write(cb_definition_begin_str.format(state))
         for transition in transition_list:
             # Fixando um estado para verificar suas transições:
@@ -380,7 +374,7 @@ def create_function_body(state_list, transition_list):
                         # Na transição interna não é necessário uma transição.
                         # Só deve ser tratada a condição de guarda e o behavior
                         # Implementar o descrito acima.
-                        i = i + 1
+                        pass
                     else:
                         for guard in transition[-2]:
                             print("Detectada condição de guarda:", guard, "no estado:",

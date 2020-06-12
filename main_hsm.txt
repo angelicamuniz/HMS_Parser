@@ -7,17 +7,17 @@
 #include "transitions.h"
 #include <string.h>
 
-enum {
-	ev1 = USER_EVENT,
-	ev2,
-	ev3,
-	ev11,
-	ev22,
-	ev33,
-	ev44,
-	ev0,
-	ev21,
-	EV
+enum{
+    ev1 = USER_EVENT,
+    ev2,
+    ev3,
+    ev11,
+    ev22,
+    ev33,
+    ev44,
+    ev0,
+    ev21,
+    EV
 };
 
 cb_status init_cb(event_t ev);

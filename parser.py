@@ -180,25 +180,92 @@ root_state = processa_estado(None, tree.children)
 
 # Como ler os eventos de uma determinada transição
 
+# Cada elemento / estado do dicionário de estados tem associado a si
+# uma lista com os seguintes itens:
+#
+#     - um dicionário para representar as transições iniciais
+#     - um dicionário para representar as transições externas
+#     - um dicionário para representar as transições internas
+#     - uma lista de strings representando os subestados do estado
+#
+# As chaves desses dicionários são aqueles elementos que identificam
+# de forma única as respectivas transições.  No primeiro dicionário,
+# as chaves são as strings representando as condições de guarda
+# associadas às várias transições iniciais.  Esse dicionário será
+# vazio se o estado não for um super-estado.  Se houver apenas uma
+# transição inicial, caso em que necessariamente não haveria condição
+# de guarda, a chave seria a string vazia. Cada chave tem associada a
+# si uma lista (potencialmente vazia) com duas strings, uma
+# representando o estado-destino e outra, a ação.
+#
+# O segundo e o terceiro dicionários tem como chaves tuplas de duas
+# strings representando o evento e a condição de guarda associada (se
+# não houver condição de guarda a segunda string será a string vazia).
+# No caso do dicionário relativo às transições externas, cada chave
+# tem associada a si uma tupla consistindo de duas strings, uma
+# representando o estado-destino e a outra a ação associada à
+# transição.
+#
+# Por último, cada chave do terceiro dicionário está associada a uma
+# string representando a ação da transição interna.
+#
+# O quarto elemento dos itens acima é a lista de strings representando
+# os subestados.  Esta lista pode ser vazia se o estado não for um
+# superestado.  Cada string nesta lista representa um subestado e
+# também é uma chave do dicionário de estados.
+#
+# Só lembrando, um super-estado pode ser identificado pelo seu
+# dicionário não-nulo de transições internas
+#
+# Além do dicionário de estados, acredito que seja útil, embora não
+# necessário, um conjunto com todos os eventos encontrados
+#
+state_dict = {"S2": [
+    # Transições iniciais
+    {"": ["S22", ""]},
+    # Transições externas"
+    {("ev3", "foo == 0"): ["S1", "foo = 1"]},
+    # Transições internas
+    {("ev11", "foo == 1"): "foo = 0",
+     ("ev22", "foo == 1"): "foo = 0",
+     ("ev33", "foo == 1"): "foo = 0",
+     ("ev44", "foo == 1"): "foo = 0",
+    },
+    # Lista de subestados
+    ["S21", "S22"]],
+    # Falta fazer os estados abaixo
+              "S21": [
+    # Transições iniciais
+    {},
+    # Transições externas"
+    {},
+    # Transições internas
+    {},
+    # Lista de subestados
+    []],
+              "S22": [
+    # Transições iniciais
+    {},
+    # Transições externas"
+    {},
+    # Transições internas
+    {},
+    # Lista de subestados
+    []]
+}
+
+# A lista abaixo não deveria ser um conjunto?
 state_list = ['S1', 'S11', 'S111', 'S12', 'S121', 'S122', 'S2', 'S21', 'S22']
 
+# As duas listas abaixo devem desaarecer?
 event_list = ['ev1', 'ev2', 'ev3', 'ev11',
               'ev22', 'ev33', 'ev44', 'ev0', 'ev21', 'EV']
-
 transition_list = [['S1', '[*]', 'S11', [], [], []], ['S11', '[*]', 'S111', [], [], []], ['S12', '[*]', 'S122', [], [], []], ['S2', ['EV11', 'EV22', 'EV33', 'EV44'], ['"foo == 1"'], ['"foo = 0"']], ['S1', 'S2', ['ev1', 'ev2', 'ev3'], ['"foo == 0"'], ['"foo = 1"']],
                    ['S1', 'S21', ['EV1'], [], []], ['S2', '[*]', 'S22', [], [], []], ['S2', ['ev11', 'ev22', 'ev33', 'ev44'], ['"foo == 1"'], ['"foo = 0"']], ['root', '[*]', 'S1', ['ev0'], [], ['"c = 1;"']], ['S21', 'S22', ['ev21'], ['"foo == 1"'], ['"foo = 2"']]]
 
-for event in transition_list[4][-3]:
-    print(event)
 
-
-# Função que preenche a primeira parte do código main_hsm.
-# Includes de outras bibliotecas e lista de eventos
-
-# Depois alterar os nomes das funções e comentar
-def create_header_events(event_list):
-    main_file = open('main_hsm.txt', 'w')
-    main_file.write('''#include <avr/pgmspace.h>
+# String que representa a inclusão de outras bibliotecas
+event_header_str = '''#include <avr/pgmspace.h>
 #include "ch.h"
 #include "hal.h"
 #include "chprintf.h"
@@ -207,19 +274,31 @@ def create_header_events(event_list):
 #include "transitions.h"
 #include <string.h>
 
-''')
-    main_file.write('enum {\n\t' + event_list[0] + ' = USER_EVENT')
+'''
+
+# String que representa a inclusão da lista de eventos
+event_enum_begin_str = """enum{{
+    {} = USER_EVENT"""
+event_enum_body_str = """,
+    {}"""
+event_enum_end_str = """
+    };,
+"""
+
+# Função que preenche a primeira parte do código main_hsm.
+def create_header_events(event_list):
+    main_file = open('main_hsm.txt', 'w')
+    main_file.write(event_header_str)
+    main_file.write((event_enum_begin_str.format(event_list[0])))
     for event in event_list[1:]:
-        main_file.write(',\n\t' + event)
+        main_file.write(event_enum_body_str.format(event))
+    #main_file.write(event_enum_end_str)
     main_file.write('\n};')
     main_file.close()
 
-
 create_header_events(event_list)
 
-
 # Funcao que cria as funções de call back de cada estado.. cb_status
-
 def create_cb_status(state_list):
     main_file = open('main_hsm.txt', 'a')
     main_file.write(

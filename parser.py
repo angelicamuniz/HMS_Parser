@@ -272,7 +272,22 @@ state_dict = {"S2": [
     # Transições internas
     {},
     # Lista de subestados
-    []]
+                  []],
+    "S3": [
+    # Transições iniciais
+    {"gc1": ["S31", "action1"],
+     "gc2": ["S32", "action2"],
+     "": ["S33", "action3"]},
+    # Transições externas"
+    {("ev3", "foo == 0"): ["S1", "foo = 1"]},
+    # Transições internas
+    {("ev11", "foo == 1"): "foo = 0",
+     ("ev22", "foo == 1"): "foo = 0",
+     ("ev33", "foo == 1"): "foo = 0",
+     ("ev44", "foo == 1"): "foo = 0",
+    },
+    # Lista de subestados
+    ["S21", "S22"]],
 }
 
 # A lista abaixo não deveria ser um conjunto?
@@ -280,10 +295,9 @@ event_list = ['ev1', 'ev2', 'ev3', 'ev11', 'ev22', 'ev33', 'ev44', 'ev0', 'ev21'
 
 # As duas listas abaixo devem desaarecer?
 state_list = ['S1', 'S11', 'S111', 'S12', 'S121', 'S122', 'S2', 'S21', 'S22']
-transition_list = [['S1', '[*]', 'S11', [], [], []], ['S11', '[*]', 'S111', [], [], []], ['S12', '[*]', 'S122', [], [], []]], ['S2', ['EV11', 'EV22', 'EV33', 'EV44'], ['"foo == 1"'], ['"foo = 0"']], ['S1', 'S2', ['ev1', 'ev2', 'ev3'], ['"foo == 0"'], ['"foo = 1"']], ['S1', 'S21', ['EV1'], [], []], ['S2', '[*]', 'S22', [], [], []], ['S2', ['ev11', 'ev22', 'ev33', 'ev44'], ['"foo == 1"'], ['"foo = 0"']], ['root', '[*]', 'S1', ['ev0'], [], ['"c = 1;"']], ['S21', 'S22', ['ev21'], ['"foo == 0"'], ['"foo = 1"']]]
 
-for event in transition_list[1][-3]:
-    print (event)
+# for event in transition_list[1][-3]:
+#     print (event)
 
 #
 # Definimos primeiro as strings definindo as várias partes do código
@@ -311,20 +325,6 @@ cb_status init_cb(event_t ev)
     return EVENT_HANDLED;
 }
 
-cb_status fn_cb(event_t ev)
-{
-    switch(ev) {
-    case ENTRY_EVENT:
-        return EVENT_HANDLED;
-    case EXIT_EVENT:
-        return EVENT_HANDLED;
-    case INIT_EVENT:
-        fn_init_tran();
-        return EVENT_HANDLED;
-    }
-    return EVENT_NOT_HANDLED;
-}
-
 """
 
 cb_definition_begin_str = """cb_status fn_{}_cb(event_t ev)
@@ -336,8 +336,6 @@ cb_definition_begin_str = """cb_status fn_{}_cb(event_t ev)
         return EVENT_HANDLED;
 """
 cb_definition_body1_str = """    case INIT_EVENT:
-        fn_{}_init_tran();
-        return EVENT_HANDLED;
 """
 cb_definition_body2_str = """    case EVENT_{}:
 """
@@ -349,6 +347,14 @@ cb_definition_end_str = """    }
     return EVENT_NOT_HANDLED;
 }
 
+"""
+cb_init_body1_str = """        {}
+        fn_{}_init_{}_tran();
+        return EVENT_HANDLED;
+"""
+cb_init_body2_str = """            {}
+            fn_{}_init_{}_tran();
+            return EVENT_HANDLED;
 """
 
 #
@@ -368,25 +374,46 @@ def cb_declarations_def(state_list):
 state callback functions"""
     return (cb_declaration_str.format(state) for state in state_list)
 
-def cb_definitions_def(state_list, transition_list):
+def cb_definitions_def(state_dict):
     """Generator function to generate the code lines for defining the
 state callback functions"""
     yield cb_header_str
-    for state in state_list:
+    for state, (d1, d2, d3, lst) in state_dict.items():
         yield cb_definition_begin_str.format(state)
-        for transition_state, initial_state, final_state, event_list, _, _ in transition_list:
-            if transition_state == state:
-                if initial_state == '[*]':
-                    yield cb_definition_body1_str.format(state)
-                else:
-                    for event in event_list:
-                        yield cb_definition_body2_str.format(event)
-                    if transition_state == final_state:
-                        # Preciso entender melhor o que está acontecendo aqui
-                        print("ERROR: Describe error")
-                        # main_file.write('\n\t\t\t' + 'fn_' + transition[0] + '_intern_' + str(i) + '_tran();\n\t\t\treturn EVENT_HANDLED;')
-                    else:
-                        yield cb_definition_body3_str.format(transition_state, final_state)
+        if d1:
+            yield cb_definition_body1_str.format(state)
+            if len(d1) == 1:
+                final_state, action = d1[""]
+                yield cb_init_body1_str.format(action, state, final_state)
+            else:
+                ifs_lst = ["".join(["if ({}) {{\n".format(gc),
+                           cb_init_body2_str.format(action, state, final_state),
+                           "        }"])
+                           for gc, (final_state, action) in d1.items() if gc]
+                ifs_str = " else ".join(ifs_lst)
+                final_state, action = d1[""]
+                ifs_str += " else {{\n{}\n        }}".format(cb_init_body2_str.format(action, state, final_state))
+                yield ifs_str
+
+        for (ev, gc), (final_state, action) in d2.items():
+            yield """    case {}:
+        if ({}) {{
+            {}
+            fn_{}_{}_tran();
+            return EVENT_HANDLED;
+        }}
+        break;
+""".format(ev, gc, action, state, final_state)
+
+        for (ev, gc), action in d3.items():
+            yield """    case {}:
+        if ({}) {{
+            {}
+            return EVENT_HANDLED;
+        }}
+        break;
+""".format(ev, gc, action)
+        
         yield cb_definition_end_str
 
 #
@@ -396,18 +423,11 @@ from itertools import chain
 
 with open('main_hsm.c', 'w') as f:
     events_seq = events_def(event_list)
-    cb_decl_seq = cb_declarations_def(state_list)
-    cb_def_seq = cb_definitions_def(state_list, transition_list)
+    cb_decl_seq = cb_declarations_def(state_dict.keys())
+    cb_def_seq = cb_definitions_def(state_dict)
     f.writelines(chain(events_seq, cb_decl_seq, cb_def_seq))
 
-
-#Transição interna precisa de fn_s2_s2_tran() ?
-#SIM  (?)  ->    se tiver duas transicoes internas, estarão com o mesmo nome --->  CORRIGIDO
-    #Correção de Hermano: Não precisa da transição. Só faz o que deve ser feito e pronto (condição de guarda e ação). Não tem entry nem exit
-
-#onde é mesmo que fn_init_tran() é implementada? Ou ela só é os dispatch da transição mesmo? 
-
-#SIM -> a condição de guarda é realizada no switch case com ifs
-#Falta implementar a condição de guarda. Tentar alterar o código do text para que não fique com "", como os ev2. Assim podemos colocar direto
-
-#Organizar em bibliotecas. 
+with open('transitions.h', 'w') as f:
+    transitions1_seq = transitions1_def(state_dict)
+    transitions2_seq = transitions2_def(state_dict)
+    f.writelines(chain(transitions1_seq, transitions2_seq))

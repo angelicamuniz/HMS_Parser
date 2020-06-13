@@ -3,8 +3,8 @@ import lark
 # Definição da gramática:
 grammar = """root: (state | transition)*
 state: "state" STATE "{" (state | transition | internal_transition)* "}"
-internal_transition: ":" TRIGGER (("," TRIGGER)*)? ("[" GUARD "]")? ("/" BEHAVIOR)?
 transition: (STATE | ENDPOINT)? "->" (STATE | ENDPOINT) ":" (TRIGGER ("," TRIGGER)*)? (("[" GUARD "]")? ("/" BEHAVIOR)?)?
+internal_transition: ":" TRIGGER (("," TRIGGER)*)? ("[" GUARD "]")? ("/" BEHAVIOR)?
 
 STATE: CNAME
 TRIGGER: CNAME
@@ -19,7 +19,7 @@ ENDPOINT: "[*]"
 %import common.INT -> NUMBER
 %import common.WS
 %ignore WS"""
-json_parser = lark.Lark(grammar, start="root")
+parser = lark.Lark(grammar, start="root")
 
 
 text = """[*] -> S1 : ev0 / "c = 1;"
@@ -28,7 +28,7 @@ text = """[*] -> S1 : ev0 / "c = 1;"
         [*] -> S11 :
 
         state S11 {
-                        [*] -> S111 :
+            [*] -> S111 :
             state S111 {
 
             }
@@ -38,7 +38,7 @@ text = """[*] -> S1 : ev0 / "c = 1;"
         }
 
         state S12 {
-                        [*] -> S122 :
+            [*] -> S122 :
             state S121 {
 
             }
@@ -47,12 +47,12 @@ text = """[*] -> S1 : ev0 / "c = 1;"
             }
         }
 
-    -> S2 : ev1, ev2, ev3 ["foo == 0"] / "foo = 1"
+        -> S2 : ev1, ev2, ev3 ["foo == 0"] / "foo = 1"
         -> S21 : EV1
     }
 
     state S2 {
-                [*] -> S22 :
+        [*] -> S22 :
         state S21 {
 
         }
@@ -60,12 +60,43 @@ text = """[*] -> S1 : ev0 / "c = 1;"
 
         }
          : ev11, ev22, ev33, ev44 ["foo == 1"] / "foo = 0"
-         : EV11, EV22, EV33, EV44 ["foo == 1"] / "foo = 0"
+        -> S1 : ev3 ["foo == 0"] / "foo = 1"
     }
     S21 -> S22 : ev21 ["foo == 0"] / "foo = 1"
 """
-tree = json_parser.parse(text)
-# print(tree.pretty())
+tree = parser.parse(text)
+#print(tree.pretty())
+
+
+
+
+def processa_token(tk):
+    print("TOKEN: type = {}, value = {}".format(tk.type, tk.value))
+
+def processa_arvore(a):
+    if a.data == "state":
+        state, *lst = a.children
+        print("STATE: {} - {} children".format(state, len(lst)))
+        for el in lst:
+            processa_arvore(el)
+    elif a.data == "transition":
+        src, dest, *rest = a.children
+        
+        print("TRANSITION: {} children".format(len(a.children)))
+        for el in a.children:
+            processa_token(el)
+    elif a.data == "internal_transition":
+        print("INTERNALTRANSITION: {} children".format(len(a.children)))
+    else:
+        print("UNKNOWN: {}".format(a.data))
+
+print("\n\n")
+for child in tree.children:
+    processa_arvore(child)
+print("\n\n")
+
+
+
 
 actions = {"root": None,
            "transition": None,
@@ -173,8 +204,8 @@ def pretty(tree, indentacao=""):
 ''' CORRIGIR: Transições escritas externamente ao estado, não são incluídas devidamente no estado correspondente.
     Ficam como transições da root.'''
 
-# Nome do estado, Filhos, Pai, Transições, Transições internas
-root_state = processa_estado(None, tree.children)
+#Nome do estado, Filhos, Pai, Transições, Transições internas
+#root_state = processa_estado(None, tree.children)
 
 # Assumindo que já temos uma lista de estados, outra de transições e outra de eventos, faça o código que vai gerar os arquivos finais. Depois disso, implemente a parte do código que gerará essas listas.
 
@@ -254,140 +285,233 @@ state_dict = {"S2": [
     []]
 }
 
+# Cada elemento / estado do dicionário de estados tem associado a si
+# uma lista com os seguintes itens:
+#
+#     - um dicionário para representar as transições iniciais
+#     - um dicionário para representar as transições externas
+#     - um dicionário para representar as transições internas
+#     - uma lista de strings representando os subestados do estado
+#
+# As chaves desses dicionários são aqueles elementos que identificam
+# de forma única as respectivas transições.  No primeiro dicionário,
+# as chaves são as strings representando as condições de guarda
+# associadas às várias transições iniciais.  Esse dicionário será
+# vazio se o estado não for um super-estado.  Se houver apenas uma
+# transição inicial, caso em que necessariamente não haveria condição
+# de guarda, a chave seria a string vazia. Cada chave tem associada a
+# si uma lista (potencialmente vazia) com duas strings, uma
+# representando o estado-destino e outra, a ação.
+#
+# O segundo e o terceiro dicionários tem como chaves tuplas de duas
+# strings representando o evento e a condição de guarda associada (se
+# não houver condição de guarda a segunda string será a string vazia).
+# No caso do dicionário relativo às transições externas, cada chave
+# tem associada a si uma tupla consistindo de duas strings, uma
+# representando o estado-destino e a outra a ação associada à
+# transição.
+#
+# Por último, cada chave do terceiro dicionário está associada a uma
+# string representando a ação da transição interna.
+#
+# O quarto elemento dos itens acima é a lista de strings representando
+# os subestados.  Esta lista pode ser vazia se o estado não for um
+# superestado.  Cada string nesta lista representa um subestado e
+# também é uma chave do dicionário de estados.
+#
+# Só lembrando, um super-estado pode ser identificado pelo seu
+# dicionário não-nulo de transições internas
+#
+# Além do dicionário de estados, acredito que seja útil, embora não
+# necessário, um conjunto com todos os eventos encontrados
+#
+state_dict = {"S2": [
+    # Transições iniciais
+    {"": ["S22", ""]},
+    # Transições externas"
+    {("ev3", "foo == 0"): ["S1", "foo = 1"]},
+    # Transições internas
+    {("ev11", "foo == 1"): "foo = 0",
+     ("ev22", "foo == 1"): "foo = 0",
+     ("ev33", "foo == 1"): "foo = 0",
+     ("ev44", "foo == 1"): "foo = 0",
+    },
+    # Lista de subestados
+    ["S21", "S22"]],
+    # Falta fazer os estados abaixo
+              "S21": [
+    # Transições iniciais
+    {},
+    # Transições externas"
+    {},
+    # Transições internas
+    {},
+    # Lista de subestados
+    []],
+              "S22": [
+    # Transições iniciais
+    {},
+    # Transições externas"
+    {},
+    # Transições internas
+    {},
+    # Lista de subestados
+                  []],
+    "S3": [
+    # Transições iniciais
+    {"gc1": ["S31", "action1"],
+     "gc2": ["S32", "action2"],
+     "": ["S33", "action3"]},
+    # Transições externas"
+    {("ev3", "foo == 0"): ["S1", "foo = 1"]},
+    # Transições internas
+    {("ev11", "foo == 1"): "foo = 0",
+     ("ev22", "foo == 1"): "foo = 0",
+     ("ev33", "foo == 1"): "foo = 0",
+     ("ev44", "foo == 1"): "foo = 0",
+    },
+    # Lista de subestados
+    ["S21", "S22"]],
+}
+
 # A lista abaixo não deveria ser um conjunto?
-state_list = ['S1', 'S11', 'S111', 'S12', 'S121', 'S122', 'S2', 'S21', 'S22']
+event_list = ['ev1', 'ev2', 'ev3', 'ev11', 'ev22', 'ev33', 'ev44', 'ev0', 'ev21', 'EV']
 
 # As duas listas abaixo devem desaarecer?
-event_list = ['ev1', 'ev2', 'ev3', 'ev11',
-              'ev22', 'ev33', 'ev44', 'ev0', 'ev21', 'EV']
-transition_list = [['S1', '[*]', 'S11', [], [], []], ['S11', '[*]', 'S111', [], [], []], ['S12', '[*]', 'S122', [], [], []], ['S2', ['EV11', 'EV22', 'EV33', 'EV44'], ['"foo == 1"'], ['"foo = 0"']], ['S1', 'S2', ['ev1', 'ev2', 'ev3'], ['"foo == 0"'], ['"foo = 1"']],
-                   ['S1', 'S21', ['EV1'], [], []], ['S2', '[*]', 'S22', [], [], []], ['S2', ['ev11', 'ev22', 'ev33', 'ev44'], ['"foo == 1"'], ['"foo = 0"']], ['root', '[*]', 'S1', ['ev0'], [], ['"c = 1;"']], ['S21', 'S22', ['ev21'], ['"foo == 1"'], ['"foo = 2"']]]
+state_list = ['S1', 'S11', 'S111', 'S12', 'S121', 'S122', 'S2', 'S21', 'S22']
 
+# for event in transition_list[1][-3]:
+#     print (event)
 
-# String que representa a inclusão de outras bibliotecas
-event_header_str = '''#include "event.h"
+#
+# Definimos primeiro as strings definindo as várias partes do código
+# em C.  Algumas s]ao strings puras, outras strings para formatação
+# (contendo {})
+#
+event_header_str = """#include "event.h"
 #include "sm.h"
-#include "transitions.h"
 
-'''
+"""
+event_enum_begin_str = """enum {{
+    {} = USER_EVENT,
+"""
+event_enum_body_str = """    {},
+"""
+event_enum_end_str = """};
 
-# String que representa a inclusão da lista de eventos
-event_enum_begin_str = """enum{{
-    {} = USER_EVENT"""
-event_enum_body_str = """,
-    {}"""
-event_enum_end_str = """
-    };,
 """
 
-# Função que preenche a primeira parte do código main_hsm.
-def create_header_events(event_list):
-    main_file = open('main_hsm.txt', 'w')
-    main_file.write(event_header_str)
-    main_file.write((event_enum_begin_str.format(event_list[0])))
-    for event in event_list[1:]:
-        main_file.write(event_enum_body_str.format(event))
-    #main_file.write(event_enum_end_str)
-    main_file.write('\n};')
-    main_file.close()
-
-create_header_events(event_list)
-
-# Funcao que cria as funções de call back de cada estado.. cb_status
-cb_declaration_init_str = '''
-
-cb_status init_cb(event_t ev);
-cb_status fn_cb(event_t ev);
-'''
 cb_declaration_str = "cb_status fn_{}_cb(event_t ev);\n"
-def create_cb_status(state_list):
-    main_file = open('main_hsm.txt', 'a')
-    main_file.write(cb_declaration_init_str)
-    # main_file.write(
-    #     '''\n\ncb_status init_cb(event_t ev);\ncb_status fn_cb(event_t ev);\n''')
-    for state in state_list:
-        main_file.write(cb_declaration_str.format(state))
-    main_file.close()
-
-create_cb_status(state_list)
-
 cb_header_str = """
 cb_status init_cb(event_t ev)
 {
     top_init_tran();
     return EVENT_HANDLED;
 }
-cb_status fn_cb(event_t ev)
-{
-    switch(ev) {
-    case ENTRY_EVENT:
-        return EVENT_HANDLED;
-    case EXIT_EVENT:
-        return EVENT_HANDLED;
-    case INIT_EVENT:
-        fn_init_tran();
-        return EVENT_HANDLED;
-    }
-    return EVENT_NOT_HANDLED;
-}
-"""
-cb_definition_begin_str = """
 
-cb_status fn_{}_cb(event_t ev)
+"""
+
+cb_definition_begin_str = """cb_status fn_{}_cb(event_t ev)
 {{
     switch(ev) {{
     case ENTRY_EVENT:
         return EVENT_HANDLED;
     case EXIT_EVENT:
-        return EVENT_HANDLED;"""
-cb_definition_body1_str = """
-    case INIT_EVENT:
-        fn_{}_init_tran();
-        return EVENT_HANDLED;"""
-cb_definition_body2_str = """
-    case EVENT_{}:"""
+        return EVENT_HANDLED;
+"""
+cb_definition_body1_str = """    case INIT_EVENT:
+"""
+cb_definition_body2_str = """    case EVENT_{}:
+"""
 cb_definition_body3_str = """
+        fn_{}_{}_tran();
+        return EVENT_HANDLED;
+"""
+cb_definition_end_str = """    }
+    return EVENT_NOT_HANDLED;
+}
+
+"""
+cb_init_body1_str = """        {}
+        fn_{}_init_{}_tran();
+        return EVENT_HANDLED;
+"""
+cb_init_body2_str = """            {}
+            fn_{}_init_{}_tran();
+            return EVENT_HANDLED;
+"""
+
+#
+# Definimos agora os geradores que serão usados para criar o código linha por linha
+#
+def events_def(event_list):
+    """Generator function to generate the code lines for defining the
+events enum"""
+    yield event_header_str
+    yield event_enum_begin_str.format(event_list[0])
+    for event in event_list[1:]:
+        yield event_enum_body_str.format(event)
+    yield event_enum_end_str
+
+def cb_declarations_def(state_list):
+    """Generator dunction to generate the code lines for declaring the
+state callback functions"""
+    return (cb_declaration_str.format(state) for state in state_list)
+
+def cb_definitions_def(state_dict):
+    """Generator function to generate the code lines for defining the
+state callback functions"""
+    yield cb_header_str
+    for state, (d1, d2, d3, lst) in state_dict.items():
+        yield cb_definition_begin_str.format(state)
+        if d1:
+            yield cb_definition_body1_str.format(state)
+            if len(d1) == 1:
+                final_state, action = d1[""]
+                yield cb_init_body1_str.format(action, state, final_state)
+            else:
+                ifs_lst = ["".join(["if ({}) {{\n".format(gc),
+                           cb_init_body2_str.format(action, state, final_state),
+                           "        }"])
+                           for gc, (final_state, action) in d1.items() if gc]
+                ifs_str = " else ".join(ifs_lst)
+                final_state, action = d1[""]
+                ifs_str += " else {{\n{}\n        }}".format(cb_init_body2_str.format(action, state, final_state))
+                yield ifs_str
+
+        for (ev, gc), (final_state, action) in d2.items():
+            yield """    case {}:
         if ({}) {{
-            {};
+            {}
             fn_{}_{}_tran();
             return EVENT_HANDLED;
         }}
-        break;"""
-# Funcao que cria o corpo das funções de call back dos estados e suas transições
-def create_function_body(state_list, transition_list):
-    main_file = open('main_hsm.txt', 'a')
-    main_file.write(cb_header_str)
-    for state in state_list:
-        main_file.write(cb_definition_begin_str.format(state))
-        for transition in transition_list:
-            # Fixando um estado para verificar suas transições:
-            if transition[0] == state:
-                # Testando se é uma transição inicial
-                if transition[1] == '[*]':
-                    main_file.write(cb_definition_body1_str.format(state))
-                else:
-                    # Os eventos que disparam a transição estão na posição -3 da lista de eventos
-                    for event in transition[-3]:
-                        main_file.write(cb_definition_body2_str.format(event))
-                    # Testando se é uma transição interna
-                    if transition[0] == transition[-4]:
-                        # Na transição interna não é necessário uma transição.
-                        # Só deve ser tratada a condição de guarda e o behavior
-                        # Implementar o descrito acima.
-                        pass
-                    else:
-                        for guard in transition[-2]:
-                            print("Detectada condição de guarda:", guard, "no estado:",
-                                  state, "behavior:", transition[-1][0][1:-1])
-                            main_file.write(cb_definition_body3_str.format(guard[1:-1], transition[-1][0][1:-1], transition[0], transition[-4]))
-                        # main_file.write('\n\t\t' + 'fn_' + transition[0] + '_' + transition[-4] + '_tran();\n\t\treturn EVENT_HANDLED;')
-        main_file.write('\n\t}\n\treturn EVENT_NOT_HANDLED;\n}')
-    main_file.close()
+        break;
+""".format(ev, gc, action, state, final_state)
 
+        for (ev, gc), action in d3.items():
+            yield """    case {}:
+        if ({}) {{
+            {}
+            return EVENT_HANDLED;
+        }}
+        break;
+""".format(ev, gc, action)
+        
+        yield cb_definition_end_str
 
-create_function_body(state_list, transition_list)
+#
+# Agora, com todos os geradores definidos, podemos gerar o arquivo da máquina de estados
+#
+from itertools import chain
 
-# Onde é mesmo que fn_init_tran() é implementada?
-# Ou ela só é os dispatch da transição mesmo?
+with open('main_hsm.c', 'w') as f:
+    events_seq = events_def(event_list)
+    cb_decl_seq = cb_declarations_def(state_dict.keys())
+    cb_def_seq = cb_definitions_def(state_dict)
+    f.writelines(chain(events_seq, cb_decl_seq, cb_def_seq))
 
-# Organizar em bibliotecas.
+with open('transitions.h', 'w') as f:
+    transitions1_seq = transitions1_def(state_dict)
+    transitions2_seq = transitions2_def(state_dict)
+    f.writelines(chain(transitions1_seq, transitions2_seq))

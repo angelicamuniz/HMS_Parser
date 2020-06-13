@@ -365,20 +365,20 @@ state_dict = {"S2": [
     # Transições externas"
     {("ev3", "foo == 0"): ["S1", "foo = 1"]},
     # Transições internas
-    {("ev11", "foo == 1"): "foo = 0",
-     ("ev22", "foo == 1"): "foo = 0",
-     ("ev33", "foo == 1"): "foo = 0",
-     ("ev44", "foo == 1"): "foo = 0",
+    {("ev111", "foo == 1"): "foo = 0",
+     ("ev222", "foo == 1"): "foo = 0",
+     ("ev333", "foo == 1"): "foo = 0",
+     ("ev444", "foo == 1"): "foo = 0",
     },
     # Lista de subestados
     ["S21", "S22"]],
 }
 
 # A lista abaixo não deveria ser um conjunto?
-event_list = ['ev1', 'ev2', 'ev3', 'ev11', 'ev22', 'ev33', 'ev44', 'ev0', 'ev21', 'EV']
+# event_list = ['ev1', 'ev2', 'ev3', 'ev11', 'ev22', 'ev33', 'ev44', 'ev0', 'ev21', 'EV']
 
 # As duas listas abaixo devem desaarecer?
-state_list = ['S1', 'S11', 'S111', 'S12', 'S121', 'S122', 'S2', 'S21', 'S22']
+# state_list = ['S1', 'S11', 'S111', 'S12', 'S121', 'S122', 'S2', 'S21', 'S22']
 
 # for event in transition_list[1][-3]:
 #     print (event)
@@ -388,6 +388,14 @@ state_list = ['S1', 'S11', 'S111', 'S12', 'S121', 'S122', 'S2', 'S21', 'S22']
 # em C.  Algumas s]ao strings puras, outras strings para formatação
 # (contendo {})
 #
+
+from itertools import chain
+
+event_list = list(set(ev for d1, d2, d3, lst 
+                    in state_dict.values() 
+                    for (ev, gc) in chain(d2, d3)))
+
+
 event_header_str = """#include "event.h"
 #include "sm.h"
 
@@ -503,7 +511,19 @@ state callback functions"""
 #
 # Agora, com todos os geradores definidos, podemos gerar o arquivo da máquina de estados
 #
-from itertools import chain
+
+tran_header_str = '''#ifndef TRANSITIONS_H
+#define TRANSITIONS_H
+
+#include "event.h"
+#include "sm.h"
+'''
+
+def transitions1_def(state_dict):
+    yield tran_header_str
+
+def transitions2_def(state_dict):
+    
 
 with open('main_hsm.c', 'w') as f:
     events_seq = events_def(event_list)

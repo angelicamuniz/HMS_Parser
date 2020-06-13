@@ -4,12 +4,6 @@
 #include "event.h"
 #include "sm.h"
 
-                                  
-/*
- * É mais eficiente criar as funções como uma MACRO.
- * Para implementar uma função com mais de uma linha, por padrão C deve ser criada a partir de um do {} while() 
- * porque é como se fosse uma única instrução que dentro tem um conjunto de instruções.
- */
 
 #define Top_init_tran() do {                    \
                 push_state(fn_cb);              \

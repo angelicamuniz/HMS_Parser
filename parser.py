@@ -517,13 +517,29 @@ tran_header_str = '''#ifndef TRANSITIONS_H
 
 #include "event.h"
 #include "sm.h"
+
 '''
+
+tran_top_init_str = '''
+#define Top_init_tran() do {{                    \
+{}
+        }} while (0)'''
+
+tran_definitions_str = '''
+#define {}_{}_tran() do {                 \
+                exit_inner_states();            \
+                push_state(s1_cb);              \
+                dispatch(ENTRY_EVENT);          \
+                push_state(s11_cb);             \
+                dispatch(ENTRY_EVENT);          \
+        } while (0)'''
 
 def transitions1_def(state_dict):
     yield tran_header_str
 
 def transitions2_def(state_dict):
-    
+    yield tran_top_init_str.format("")
+    yield tran_definitions_str.format("")
 
 with open('main_hsm.c', 'w') as f:
     events_seq = events_def(event_list)
@@ -533,5 +549,6 @@ with open('main_hsm.c', 'w') as f:
 
 with open('transitions.h', 'w') as f:
     transitions1_seq = transitions1_def(state_dict)
+    cb_decl_seq = cb_declarations_def(state_dict.keys())
     transitions2_seq = transitions2_def(state_dict)
-    f.writelines(chain(transitions1_seq, transitions2_seq))
+    f.writelines(chain(transitions1_seq, cb_decl_seq, transitions2_seq))

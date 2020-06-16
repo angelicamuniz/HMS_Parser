@@ -1,3 +1,4 @@
+from itertools import chain
 import lark
 
 # Definição da gramática:
@@ -65,13 +66,12 @@ text = """[*] -> S1 : ev0 / "c = 1;"
     S21 -> S22 : ev21 ["foo == 0"] / "foo = 1"
 """
 tree = parser.parse(text)
-#print(tree.pretty())
-
-
+# print(tree.pretty())
 
 
 def processa_token(tk):
     print("TOKEN: type = {}, value = {}".format(tk.type, tk.value))
+
 
 def processa_arvore(a):
     if a.data == "state":
@@ -81,7 +81,6 @@ def processa_arvore(a):
             processa_arvore(el)
     elif a.data == "transition":
         src, dest, *rest = a.children
-        
         print("TRANSITION: {} children".format(len(a.children)))
         for el in a.children:
             processa_token(el)
@@ -91,12 +90,11 @@ def processa_arvore(a):
         print("UNKNOWN: {}".format(a.data))
 
 print("\n\n")
+
+
 for child in tree.children:
     processa_arvore(child)
 print("\n\n")
-
-
-
 
 actions = {"root": None,
            "transition": None,
@@ -123,7 +121,9 @@ def processa_transicao(children, current_state):
         transicao = [current_state, children[0].value, [], [], []]
         print('Est atual:', current_state, 'Est final:', children[0].value)
     for node in children[1:]:
-        # Alterei a localização do trigger, guard e behavior para serem encontrados de trás para frente, por causa da inclusão de um novo campo quando há transição init
+        # Alterei a localização do trigger, guard e behavior para serem 
+        # encontrados de trás para frente, por causa da inclusão de um
+        # novo campo quando há transição init
         if node.type == "TRIGGER":
             transicao[-3].append(node.value)
         elif node.type == "GUARD":
@@ -201,13 +201,16 @@ def pretty(tree, indentacao=""):
 
 '''pretty(tree)'''
 
-''' CORRIGIR: Transições escritas externamente ao estado, não são incluídas devidamente no estado correspondente.
+''' CORRIGIR: Transições escritas externamente ao estado, 
+    não são incluídas devidamente no estado correspondente.
     Ficam como transições da root.'''
 
-#Nome do estado, Filhos, Pai, Transições, Transições internas
-#root_state = processa_estado(None, tree.children)
+# Nome do estado, Filhos, Pai, Transições, Transições internas
+# root_state = processa_estado(None, tree.children)
 
-# Assumindo que já temos uma lista de estados, outra de transições e outra de eventos, faça o código que vai gerar os arquivos finais. Depois disso, implemente a parte do código que gerará essas listas.
+# Assumindo que já temos uma lista de estados, outra de transições e
+# outra de eventos, faça o código que vai gerar os arquivos finais.
+# Depois disso, implemente a parte do código que gerará essas listas.
 
 # Como ler os eventos de uma determinada transição
 
@@ -389,10 +392,9 @@ state_dict = {"S2": [
 # (contendo {})
 #
 
-from itertools import chain
 
 event_list = list(set(ev for d1, d2, d3, lst 
-                    in state_dict.values() 
+                    in state_dict.values()
                     for (ev, gc) in chain(d2, d3)))
 
 
@@ -435,6 +437,24 @@ cb_definition_body3_str = """
         fn_{}_{}_tran();
         return EVENT_HANDLED;
 """
+
+cb_definition_body4_str = """    case {}:
+        if ({}) {{
+            {}
+            fn_{}_{}_tran();
+            return EVENT_HANDLED;
+        }}
+        break;
+"""
+
+cb_definition_body5_str = """    case {}:
+        if ({}) {{
+            {}
+            return EVENT_HANDLED;
+        }}
+        break;
+"""
+
 cb_definition_end_str = """    }
     return EVENT_NOT_HANDLED;
 }
@@ -449,8 +469,10 @@ cb_init_body2_str = """            {}
             return EVENT_HANDLED;
 """
 
+
 #
-# Definimos agora os geradores que serão usados para criar o código linha por linha
+# Definimos agora os geradores que serão 
+# usados para criar o código linha por linha
 #
 def events_def(event_list):
     """Generator function to generate the code lines for defining the
@@ -461,10 +483,12 @@ events enum"""
         yield event_enum_body_str.format(event)
     yield event_enum_end_str
 
+
 def cb_declarations_def(state_list):
     """Generator dunction to generate the code lines for declaring the
 state callback functions"""
     return (cb_declaration_str.format(state) for state in state_list)
+
 
 def cb_definitions_def(state_dict):
     """Generator function to generate the code lines for defining the
@@ -484,33 +508,21 @@ state callback functions"""
                            for gc, (final_state, action) in d1.items() if gc]
                 ifs_str = " else ".join(ifs_lst)
                 final_state, action = d1[""]
-                ifs_str += " else {{\n{}\n        }}".format(cb_init_body2_str.format(action, state, final_state))
-                yield ifs_str
+                ifs_str += " else {{\n{}\n        }}\n".format(cb_init_body2_str.format(action, state, final_state))
+                yield "\t\t" + ifs_str
 
         for (ev, gc), (final_state, action) in d2.items():
-            yield """    case {}:
-        if ({}) {{
-            {}
-            fn_{}_{}_tran();
-            return EVENT_HANDLED;
-        }}
-        break;
-""".format(ev, gc, action, state, final_state)
+            yield cb_definition_body4_str.format(ev, gc, action, state, final_state)
 
         for (ev, gc), action in d3.items():
-            yield """    case {}:
-        if ({}) {{
-            {}
-            return EVENT_HANDLED;
-        }}
-        break;
-""".format(ev, gc, action)
-        
+            yield cb_definition_body5_str.format(ev, gc, action)
         yield cb_definition_end_str
 
 #
-# Agora, com todos os geradores definidos, podemos gerar o arquivo da máquina de estados
+# Agora, com todos os geradores definidos,
+# podemos gerar o arquivo da máquina de estados
 #
+
 
 tran_header_str = '''#ifndef TRANSITIONS_H
 #define TRANSITIONS_H
@@ -523,29 +535,35 @@ tran_header_str = '''#ifndef TRANSITIONS_H
 tran_top_init_str = '''
 #define Top_init_tran() do {{                    \
 {}
-        }} while (0)'''
+        }} while (0)
+'''
 
 tran_definitions_str = '''
-#define {}_{}_tran() do {                 \
-                exit_inner_states();            \
-                push_state(s1_cb);              \
-                dispatch(ENTRY_EVENT);          \
-                push_state(s11_cb);             \
-                dispatch(ENTRY_EVENT);          \
-        } while (0)'''
+#define {0}_{0}_tran() do {{                    \\
+                exit_inner_states();            \\
+                push_state(s1_cb);              \\
+                dispatch(ENTRY_EVENT);          \\
+                push_state(s11_cb);             \\
+                dispatch(ENTRY_EVENT);          \\
+        }} while (0)
+'''
+
 
 def transitions1_def(state_dict):
     yield tran_header_str
 
+
 def transitions2_def(state_dict):
     yield tran_top_init_str.format("")
     yield tran_definitions_str.format("")
+
 
 with open('main_hsm.c', 'w') as f:
     events_seq = events_def(event_list)
     cb_decl_seq = cb_declarations_def(state_dict.keys())
     cb_def_seq = cb_definitions_def(state_dict)
     f.writelines(chain(events_seq, cb_decl_seq, cb_def_seq))
+
 
 with open('transitions.h', 'w') as f:
     transitions1_seq = transitions1_def(state_dict)

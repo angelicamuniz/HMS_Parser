@@ -254,81 +254,9 @@ def pretty(tree, indentacao=""):
 # Além do dicionário de estados, acredito que seja útil, embora não
 # necessário, um conjunto com todos os eventos encontrados
 #
-state_dict = {"S2": [
-    # Transições iniciais
-    {"": ["S22", ""]},
-    # Transições externas"
-    {("ev3", "foo == 0"): ["S1", "foo = 1"]},
-    # Transições internas
-    {("ev11", "foo == 1"): "foo = 0",
-     ("ev22", "foo == 1"): "foo = 0",
-     ("ev33", "foo == 1"): "foo = 0",
-     ("ev44", "foo == 1"): "foo = 0",
-    },
-    # Lista de subestados
-    ["S21", "S22"]],
-    # Falta fazer os estados abaixo
-              "S21": [
-    # Transições iniciais
-    {},
-    # Transições externas"
-    {},
-    # Transições internas
-    {},
-    # Lista de subestados
-    []],
-              "S22": [
-    # Transições iniciais
-    {},
-    # Transições externas"
-    {},
-    # Transições internas
-    {},
-    # Lista de subestados
-    []]
-}
-
-# Cada elemento / estado do dicionário de estados tem associado a si
-# uma lista com os seguintes itens:
-#
-#     - um dicionário para representar as transições iniciais
-#     - um dicionário para representar as transições externas
-#     - um dicionário para representar as transições internas
-#     - uma lista de strings representando os subestados do estado
-#
-# As chaves desses dicionários são aqueles elementos que identificam
-# de forma única as respectivas transições.  No primeiro dicionário,
-# as chaves são as strings representando as condições de guarda
-# associadas às várias transições iniciais.  Esse dicionário será
-# vazio se o estado não for um super-estado.  Se houver apenas uma
-# transição inicial, caso em que necessariamente não haveria condição
-# de guarda, a chave seria a string vazia. Cada chave tem associada a
-# si uma lista (potencialmente vazia) com duas strings, uma
-# representando o estado-destino e outra, a ação.
-#
-# O segundo e o terceiro dicionários tem como chaves tuplas de duas
-# strings representando o evento e a condição de guarda associada (se
-# não houver condição de guarda a segunda string será a string vazia).
-# No caso do dicionário relativo às transições externas, cada chave
-# tem associada a si uma tupla consistindo de duas strings, uma
-# representando o estado-destino e a outra a ação associada à
-# transição.
-#
-# Por último, cada chave do terceiro dicionário está associada a uma
-# string representando a ação da transição interna.
-#
-# O quarto elemento dos itens acima é a lista de strings representando
-# os subestados.  Esta lista pode ser vazia se o estado não for um
-# superestado.  Cada string nesta lista representa um subestado e
-# também é uma chave do dicionário de estados.
-#
-# Só lembrando, um super-estado pode ser identificado pelo seu
-# dicionário não-nulo de transições internas
-#
-# Além do dicionário de estados, acredito que seja útil, embora não
-# necessário, um conjunto com todos os eventos encontrados
-#
-state_dict = {"S2": [
+state_dict = {"[*]": [
+    ],
+    "S2": [
     # Transições iniciais
     {"": ["S22", ""]},
     # Transições externas"
@@ -550,20 +478,18 @@ tran_definitions_str = '''
 
 
 def transitions1_def(state_dict):
-    yield tran_header_str
-
+    dest_state = state_dict["[*]"]
+    yield tran_header_str.format()
 
 def transitions2_def(state_dict):
     yield tran_top_init_str.format("")
     yield tran_definitions_str.format("")
-
 
 with open('main_hsm.c', 'w') as f:
     events_seq = events_def(event_list)
     cb_decl_seq = cb_declarations_def(state_dict.keys())
     cb_def_seq = cb_definitions_def(state_dict)
     f.writelines(chain(events_seq, cb_decl_seq, cb_def_seq))
-
 
 with open('transitions.h', 'w') as f:
     transitions1_seq = transitions1_def(state_dict)

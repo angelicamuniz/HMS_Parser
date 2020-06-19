@@ -460,11 +460,9 @@ tran_header_str = '''#ifndef TRANSITIONS_H
 
 '''
 
-tran_top_init_str = '''
+tran_top_init_begin_str = """
 #define Top_init_tran() do {{                    \
-{}
-        }} while (0)
-'''
+"""
 
 tran_definitions_str = '''
 #define {0}_{0}_tran() do {{                    \\
@@ -476,13 +474,34 @@ tran_definitions_str = '''
         }} while (0)
 '''
 
+push_init_path_str = """                push_state(fn_{}_cb);               \\
+                dispatch(ENTRY_EVENT);          \\
+"""
 
-def transitions1_def(state_dict):
-    dest_state = state_dict["[*]"]
+tran_end_str = """
+        }} while (0)
+"""
+
+def transitions1_def():
+    global state_dict
     yield tran_header_str.format()
 
-def transitions2_def(state_dict):
-    yield tran_top_init_str.format("")
+def transitions2_def():
+    global state_dict, bottom_up_state_dict
+    dest_state = state_dict["[*]"][0][0]
+    path, cur_state = [], dest_state
+    while bottom_up_state_dict[cur_state] != "[*]":
+        path.append(cur_state)
+        cur_state = bottom_up_state_dict[cur_state]
+    path = path[::-1]
+
+    for state in path:
+        yield push_init_path_str.format(state)
+    if state_dict[dest_state][-1]:
+        yield "\t\tdispatch(INIT_EVENT);       \\\n"
+    yield tran_top_init_str.format(s)
+    yield tran_end_str
+
     yield tran_definitions_str.format("")
 
 with open('main_hsm.c', 'w') as f:
@@ -492,7 +511,7 @@ with open('main_hsm.c', 'w') as f:
     f.writelines(chain(events_seq, cb_decl_seq, cb_def_seq))
 
 with open('transitions.h', 'w') as f:
-    transitions1_seq = transitions1_def(state_dict)
+    transitions1_seq = transitions1_def()
     cb_decl_seq = cb_declarations_def(state_dict.keys())
-    transitions2_seq = transitions2_def(state_dict)
+    transitions2_seq = transitions2_def()
     f.writelines(chain(transitions1_seq, cb_decl_seq, transitions2_seq))

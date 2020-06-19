@@ -305,6 +305,19 @@ state_dict = {"[*]": [
     ["S21", "S22"]],
 }
 
+bottom_up_state_dict = {
+    "S1" : "[*]",
+    "S11" : "S1",
+    "S111" : "S11",
+    "S112" : "S11",
+    "S12" : "S1",
+    "S121" : "S12",
+    "S122" : "S12",
+    "S2" : "[*]",
+    "S21" : "S2",
+    "S22" : "S2",
+}
+
 # A lista abaixo não deveria ser um conjunto?
 # event_list = ['ev1', 'ev2', 'ev3', 'ev11', 'ev22', 'ev33', 'ev44', 'ev0', 'ev21', 'EV']
 

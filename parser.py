@@ -567,11 +567,11 @@ tran_header_str = '''#ifndef TRANSITIONS_H
 '''
 
 tran_top_init_begin_str = """
-#define Top_init_tran() do {{                    \\
+#define Top_init_tran() do {{\t\t\t\t\\
 """
 
 tran_init_def_begin_str = """
-#define {} do {{                    \\
+#define {} do {{\t\t\t\\
 """
 
 '''
@@ -583,12 +583,13 @@ tran_init_def_begin_str = """
         }} while (0)
 '''
 
-push_init_path_str = """                push_state(fn_{}_cb);               \\
-                dispatch(ENTRY_EVENT);          \\
+push_init_path_str = """                push_state(fn_{}_cb);\t\t\t\\
+                dispatch(ENTRY_EVENT);\t\t\t\\
 """
+dispatch_init_str = "\t\tdispatch(INIT_EVENT);\t\t\t\\\n"
 
 tran_local_begin_str = """
-#define {} do {{                 \\
+#define {} do {{\t\t\t\\
 """
 
 tran_init_name_str = "fn_{}_init_{}_tran()"
@@ -619,13 +620,23 @@ def transitions2_def():
     for state in path:
         yield push_init_path_str.format(state)
     if state_dict[dest_state][-1]:
-        yield "\t\tdispatch(INIT_EVENT);       \\\n"
+        yield dispatch_init_str
     yield tran_end_str
 
     for src_state, state_info in state_dict.items():
         for gc, (dst_state, action) in state_info[0].items():
             yield tran_init_def_begin_str.format(
                 tran_init_name_str.format(src_state, dst_state))
+            path, cur_state = [], dst_state
+            while cur_state != src_state:
+                path.append(cur_state)
+                cur_state = bottom_up_state_dict[cur_state]
+            path = path[::-1]
+
+            for state in path:
+                yield push_init_path_str.format(state)
+            if state_dict[dst_state][-1]:
+                yield dispatch_init_str
             yield tran_end_str
 
     # Gerando transições locais     -       Falta ler do dicionário
@@ -641,7 +652,7 @@ def transitions2_def():
     for state in path:
         yield push_init_path_str.format(state)
     if state_dict[dest_state][-1]:
-        yield "\t\tdispatch(INIT_EVENT);       \\\n"
+        yield dispatch_init_str
     yield tran_end_str
 
     # Gerando transições externas

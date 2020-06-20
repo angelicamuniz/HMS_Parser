@@ -23,10 +23,12 @@ ENDPOINT: "[*]"
 parser = lark.Lark(grammar, start="root")
 
 
-text = """[*] -> S11 : ev0 / "c = 1;"
+text = """[*] -> S11 :
 
     state S1 {
         [*] -> S11 :
+        [*] -> S112 : ["foo == 1"] / "foo = 0"
+        [*] -> S122 : ["c == 1"] / "c = 0"
 
         state S11 {
             [*] -> S111 :
@@ -260,7 +262,11 @@ def pretty(tree, indentacao=""):
 state_dict = {
     "S1": [
         # Transições iniciais - dicionário
-        {"": ["S11", ""]},
+        {
+            "": ["S11", ""],
+            "foo == 1": ["S112", "foo = 0"],
+            "c == 1": ["S122", "c = 0" ],
+        },
         # Transições externas" - dicionário
         {
             ("ev1", "foo == 0"): ("S2", "foo = 1"),
@@ -389,7 +395,7 @@ bottom_up_state_dict = {
 }
 
 initial_state = [
-    {"": ["S22", ""]},
+    {"": ["S11", ""]},
     {},
     {},
     ["S1", "S2"]
@@ -531,7 +537,7 @@ state callback functions"""
                            for gc, (final_state, action) in d1.items() if gc]
                 ifs_str = " else ".join(ifs_lst)
                 final_state, action = d1[""]
-                ifs_str += " else {{\n{}\n        }}\n".format(cb_init_body2_str.format(action, state, final_state))
+                ifs_str += " else {{\n{}\n        }}\n".format(cb_init_body2_str.format(action, tran_init_name_str.format(state, final_state)))
                 yield "\t\t" + ifs_str
 
         # Transições externas

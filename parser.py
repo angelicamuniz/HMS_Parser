@@ -23,7 +23,7 @@ ENDPOINT: "[*]"
 parser = lark.Lark(grammar, start="root")
 
 
-text = """[*] -> S1 : ev0 / "c = 1;"
+text = """[*] -> S11 : ev0 / "c = 1;"
 
     state S1 {
         [*] -> S11 :
@@ -50,6 +50,7 @@ text = """[*] -> S1 : ev0 / "c = 1;"
 
         -> S2 : ev1, ev2, ev3 ["foo == 0"] / "foo = 1"
         -> S21 : EV1
+        -> S121 : ev1 ["foo == 1"] / "foo = 0"
     }
 
     state S2 {
@@ -62,6 +63,7 @@ text = """[*] -> S1 : ev0 / "c = 1;"
         }
          : ev11, ev22, ev33, ev44 ["foo == 1"] / "foo = 0"
         -> S1 : ev3 ["foo == 0"] / "foo = 1"
+        -> S21 : ev5
     }
     S21 -> S22 : ev21 ["foo == 0"] / "foo = 1"
 """
@@ -88,6 +90,7 @@ def processa_arvore(a):
         print("INTERNALTRANSITION: {} children".format(len(a.children)))
     else:
         print("UNKNOWN: {}".format(a.data))
+
 
 print("\n\n")
 
@@ -201,7 +204,7 @@ def pretty(tree, indentacao=""):
 
 '''pretty(tree)'''
 
-''' CORRIGIR: Transições escritas externamente ao estado, 
+''' CORRIGIR: Transições escritas externamente ao estado,
     não são incluídas devidamente no estado correspondente.
     Ficam como transições da root.'''
 
@@ -254,66 +257,135 @@ def pretty(tree, indentacao=""):
 # Além do dicionário de estados, acredito que seja útil, embora não
 # necessário, um conjunto com todos os eventos encontrados
 #
-state_dict = {"S2": [
-    # Transições iniciais
-    {"": ["S22", ""]},
-    # Transições externas"
-    {("ev3", "foo == 0"): ["S1", "foo = 1"]},
-    # Transições internas
-    {("ev11", "foo == 1"): "foo = 0",
-     ("ev22", "foo == 1"): "foo = 0",
-     ("ev33", "foo == 1"): "foo = 0",
-     ("ev44", "foo == 1"): "foo = 0",
-    },
-    # Lista de subestados
-    ["S21", "S22"]],
-    # Falta fazer os estados abaixo
-              "S21": [
-    # Transições iniciais
-    {},
-    # Transições externas"
-    {},
-    # Transições internas
-    {},
-    # Lista de subestados
-    []],
-              "S22": [
-    # Transições iniciais
-    {},
-    # Transições externas"
-    {},
-    # Transições internas
-    {},
-    # Lista de subestados
-                  []],
-    "S3": [
-    # Transições iniciais
-    {"gc1": ["S31", "action1"],
-     "gc2": ["S32", "action2"],
-     "": ["S33", "action3"]},
-    # Transições externas"
-    {("ev3", "foo == 0"): ["S1", "foo = 1"]},
-    # Transições internas
-    {("ev111", "foo == 1"): "foo = 0",
-     ("ev222", "foo == 1"): "foo = 0",
-     ("ev333", "foo == 1"): "foo = 0",
-     ("ev444", "foo == 1"): "foo = 0",
-    },
-    # Lista de subestados
-    ["S21", "S22"]],
+state_dict = {
+    "S1": [
+        # Transições iniciais - dicionário
+        {"": ["S11", ""]},
+        # Transições externas" - dicionário
+        {
+            ("ev1", "foo == 0"): ("S2", "foo = 1"),
+            ("ev2", "foo == 0"): ("S2", "foo = 1"),
+            ("ev3", "foo == 0"): ("S2", "foo = 1"),
+            ("EV1", ""): ("S21", ""),
+            # Transição local
+            ("ev4", "foo == 1"): ("S121", "foo = 0"),
+        },
+        # Transições internas - dicionário
+        {},
+        # Lista de subestados
+        ["S11", "S22"],
+    ],
+    "S11": [
+        # Transições iniciais - dicionário
+        {"": ["S111", ""]},
+        # Transições externas" - dicionário
+        {},
+        # Transições internas - dicionário
+        {},
+        # Lista de subestados
+        ["S111", "S112"],
+    ],
+    "S111": [
+        # Transições iniciais - dicionário
+        {},
+        # Transições externas" - dicionário
+        {},
+        # Transições internas - dicionário
+        {},
+        # Lista de subestados
+        [],
+    ],
+    "S112": [
+        # Transições iniciais - dicionário
+        {},
+        # Transições externas" - dicionário
+        {},
+        # Transições internas - dicionário
+        {},
+        # Lista de subestados
+        [],
+    ],
+    "S12": [
+        # Transições iniciais - dicionário
+        {"": ["S122", ""]},
+        # Transições externas" - dicionário
+        {},
+        # Transições internas - dicionário
+        {},
+        # Lista de subestados
+        ["S121", "S122"],
+    ],
+    "S121": [
+        # Transições iniciais - dicionário
+        {},
+        # Transições externas" - dicionário
+        {},
+        # Transições internas - dicionário
+        {},
+        # Lista de subestados
+        [],
+    ],
+    "S122": [
+        # Transições iniciais - dicionário
+        {},
+        # Transições externas" - dicionário
+        {},
+        # Transições internas - dicionário
+        {},
+        # Lista de subestados
+        [],
+    ],
+    "S2": [
+        # Transições iniciais - dicionário
+        {"": ["S22", ""]},
+        # Transições externas" - dicionário
+        {
+            ("ev3", "foo == 0"): ("S1", "foo = 1"),
+            ("ev5", ""): ("S21", ""),
+        },
+        # Transições internas - dicionário
+        {
+            ("ev11", "foo == 1"): "foo = 0",
+            ("ev22", "foo == 1"): "foo = 0",
+            ("ev33", "foo == 1"): "foo = 0",
+            ("ev44", "foo == 1"): "foo = 0",
+        },
+        # Lista de subestados
+        ["S21", "S22"],
+    ],
+    "S21": [
+        # Transições iniciais - dicionário
+        {},
+        # Transições externas" - dicionário
+        {("ev21", "foo == 0"): ("S22", "foo = 1")},
+        # Transições internas - dicionário
+        {},
+        # Lista de subestados
+        [],
+    ],
+    "S22": [
+        # Transições iniciais - dicionário
+        {},
+        # Transições externas" - dicionário
+        {},
+        # Transições internas - dicionário
+        {},
+        # Lista de subestados
+        [],
+    ],
 }
 
 bottom_up_state_dict = {
-    "S1" : "[*]",
-    "S11" : "S1",
-    "S111" : "S11",
-    "S112" : "S11",
-    "S12" : "S1",
-    "S121" : "S12",
-    "S122" : "S12",
-    "S2" : "[*]",
-    "S21" : "S2",
-    "S22" : "S2",
+    "S1": "[*]",
+    "S11": "S1",
+    "S111": "S11",
+    "S112": "S11",
+    "S12": "S1",
+    "S121": "S12",
+    "S122": "S12",
+    "S2": "[*]",
+    "S21": "S2",
+    "S22": "S2",
 }
 
 initial_state = [
@@ -324,10 +396,12 @@ initial_state = [
     ]
 
 # A lista abaixo não deveria ser um conjunto?
-# event_list = ['ev1', 'ev2', 'ev3', 'ev11', 'ev22', 'ev33', 'ev44', 'ev0', 'ev21', 'EV']
+# event_list = ['ev1', 'ev2', 'ev3', 'ev11', 'ev22',
+#               'ev33', 'ev44', 'ev0', 'ev21', 'EV']
 
 # As duas listas abaixo devem desaarecer?
-# state_list = ['S1', 'S11', 'S111', 'S12', 'S121', 'S122', 'S2', 'S21', 'S22']
+# state_list = ['S1', 'S11', 'S111', 'S12', 'S121',
+#               'S122', 'S2', 'S21', 'S22']
 
 # for event in transition_list[1][-3]:
 #     print (event)
@@ -339,9 +413,9 @@ initial_state = [
 #
 
 
-event_list = list(set(ev for d1, d2, d3, lst 
-                    in state_dict.values()
-                    for (ev, gc) in chain(d2, d3)))
+event_list = list(set(ev for d1, d2, d3, lst
+                      in state_dict.values()
+                      for (ev, gc) in chain(d2, d3)))
 
 
 event_header_str = """#include "event.h"
@@ -417,7 +491,7 @@ cb_init_body2_str = """            {}
 
 
 #
-# Definimos agora os geradores que serão 
+# Definimos agora os geradores que serão
 # usados para criar o código linha por linha
 #
 def events_def(event_list):
@@ -442,6 +516,7 @@ state callback functions"""
     yield cb_header_str
     for state, (d1, d2, d3, lst) in state_dict.items():
         yield cb_definition_begin_str.format(state)
+        # Transições iniciais
         if d1:
             yield cb_definition_body1_str.format(state)
             if len(d1) == 1:
@@ -459,12 +534,15 @@ state callback functions"""
                 ifs_str += " else {{\n{}\n        }}\n".format(cb_init_body2_str.format(action, state, final_state))
                 yield "\t\t" + ifs_str
 
+        # Transições externas
         for (ev, gc), (final_state, action) in d2.items():
             yield cb_definition_body4_str.format(ev, gc, action,
                                                  tran_ext_name_str.format(state, final_state))
 
+        # Transições internas
         for (ev, gc), action in d3.items():
             yield cb_definition_body5_str.format(ev, gc, action)
+       
         yield cb_definition_end_str
 
 #
@@ -510,9 +588,11 @@ tran_end_str = """
         }} while (0)
 """
 
+
 def transitions1_def():
     global state_dict
     yield tran_header_str.format()
+
 
 def transitions2_def():
     global state_dict, bottom_up_state_dict
@@ -541,14 +621,14 @@ def transitions2_def():
 
     # Gerando transições externas
     src_state, dst_state = "S11", "S2"
-    path1, path2, cur_state = [] , [], dst_state
+    path1, path2, cur_state = [], [], dst_state
     while cur_state != "[*]":
         path2.append(cur_state)
         cur_state = bottom_up_state_dict[cur_state]
     path2 = path2[::-1]
 
     from itertools import zip_longest
-    
+   
     cur_state = src_state
     while cur_state != "[*]":
         path1.append(cur_state)
@@ -560,11 +640,13 @@ def transitions2_def():
     print(path1)
     print(path2)
 
+
 with open('main_hsm.c', 'w') as f:
     events_seq = events_def(event_list)
     cb_decl_seq = cb_declarations_def(state_dict.keys())
     cb_def_seq = cb_definitions_def(state_dict)
     f.writelines(chain(events_seq, cb_decl_seq, cb_def_seq))
+
 
 with open('transitions.h', 'w') as f:
     transitions1_seq = transitions1_def()

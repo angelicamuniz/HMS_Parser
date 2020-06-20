@@ -254,9 +254,7 @@ def pretty(tree, indentacao=""):
 # Além do dicionário de estados, acredito que seja útil, embora não
 # necessário, um conjunto com todos os eventos encontrados
 #
-state_dict = {"[*]": [
-    ],
-    "S2": [
+state_dict = {"S2": [
     # Transições iniciais
     {"": ["S22", ""]},
     # Transições externas"
@@ -318,6 +316,13 @@ bottom_up_state_dict = {
     "S22" : "S2",
 }
 
+initial_state = [
+    {"": ["S22", ""]},
+    {},
+    {},
+    ["S1", "S2"]
+    ]
+
 # A lista abaixo não deveria ser um conjunto?
 # event_list = ['ev1', 'ev2', 'ev3', 'ev11', 'ev22', 'ev33', 'ev44', 'ev0', 'ev21', 'EV']
 
@@ -375,14 +380,14 @@ cb_definition_body1_str = """    case INIT_EVENT:
 cb_definition_body2_str = """    case EVENT_{}:
 """
 cb_definition_body3_str = """
-        fn_{}_{}_tran();
+        {}_{}_tran();
         return EVENT_HANDLED;
 """
 
 cb_definition_body4_str = """    case {}:
         if ({}) {{
             {}
-            fn_{}_{}_tran();
+            {};
             return EVENT_HANDLED;
         }}
         break;
@@ -402,11 +407,11 @@ cb_definition_end_str = """    }
 
 """
 cb_init_body1_str = """        {}
-        fn_{}_init_{}_tran();
+        {};
         return EVENT_HANDLED;
 """
 cb_init_body2_str = """            {}
-            fn_{}_init_{}_tran();
+            {};
             return EVENT_HANDLED;
 """
 
@@ -441,10 +446,12 @@ state callback functions"""
             yield cb_definition_body1_str.format(state)
             if len(d1) == 1:
                 final_state, action = d1[""]
-                yield cb_init_body1_str.format(action, state, final_state)
+                yield cb_init_body1_str.format(action,
+                                               tran_init_name_str.format(state, final_state))
             else:
                 ifs_lst = ["".join(["if ({}) {{\n".format(gc),
-                           cb_init_body2_str.format(action, state, final_state),
+                           cb_init_body2_str.format(action,
+                                                    tran_init_name_str.format(state, final_state)),
                            "        }"])
                            for gc, (final_state, action) in d1.items() if gc]
                 ifs_str = " else ".join(ifs_lst)
@@ -453,7 +460,8 @@ state callback functions"""
                 yield "\t\t" + ifs_str
 
         for (ev, gc), (final_state, action) in d2.items():
-            yield cb_definition_body4_str.format(ev, gc, action, state, final_state)
+            yield cb_definition_body4_str.format(ev, gc, action,
+                                                 tran_ext_name_str.format(state, final_state))
 
         for (ev, gc), action in d3.items():
             yield cb_definition_body5_str.format(ev, gc, action)
@@ -474,11 +482,14 @@ tran_header_str = '''#ifndef TRANSITIONS_H
 '''
 
 tran_top_init_begin_str = """
-#define Top_init_tran() do {{                    \
+#define Top_init_tran() do {{                    \\
 """
 
-tran_definitions_str = '''
-#define {0}_{0}_tran() do {{                    \\
+tran_init_def_begin_str = """
+#define {} do {{                    \\
+"""
+
+'''
                 exit_inner_states();            \\
                 push_state(s1_cb);              \\
                 dispatch(ENTRY_EVENT);          \\
@@ -491,6 +502,10 @@ push_init_path_str = """                push_state(fn_{}_cb);               \\
                 dispatch(ENTRY_EVENT);          \\
 """
 
+tran_init_name_str = "fn_{}_init_{}_tran()"
+tran_local_name_str = "fn_{}_local_{}_tran()"
+tran_ext_name_str = "fn_{}_{}_tran()"
+
 tran_end_str = """
         }} while (0)
 """
@@ -501,21 +516,49 @@ def transitions1_def():
 
 def transitions2_def():
     global state_dict, bottom_up_state_dict
-    dest_state = state_dict["[*]"][0][0]
+    dest_state = initial_state[0][""][0]
     path, cur_state = [], dest_state
-    while bottom_up_state_dict[cur_state] != "[*]":
+    while cur_state != "[*]":
         path.append(cur_state)
         cur_state = bottom_up_state_dict[cur_state]
     path = path[::-1]
 
+    yield tran_top_init_begin_str
     for state in path:
         yield push_init_path_str.format(state)
     if state_dict[dest_state][-1]:
         yield "\t\tdispatch(INIT_EVENT);       \\\n"
-    yield tran_top_init_str.format(s)
     yield tran_end_str
 
-    yield tran_definitions_str.format("")
+    # Gerando transições iniciais
+    for src_state, state_info in state_dict.items():
+        for gc, (dst_state, action) in state_info[0].items():
+            yield tran_init_def_begin_str.format(
+                tran_init_name_str.format(src_state, dst_state))
+            yield tran_end_str
+
+    # Gerando transições locais
+
+    # Gerando transições externas
+    src_state, dst_state = "S11", "S2"
+    path1, path2, cur_state = [] , [], dst_state
+    while cur_state != "[*]":
+        path2.append(cur_state)
+        cur_state = bottom_up_state_dict[cur_state]
+    path2 = path2[::-1]
+
+    from itertools import zip_longest
+    
+    cur_state = src_state
+    while cur_state != "[*]":
+        path1.append(cur_state)
+        cur_state = bottom_up_state_dict[cur_state]
+    path1 = path1[::-1]
+
+    path1 = [el1 for el1, el2 in zip_longest(path1, path2) if el1 != el2]
+    path2 = [el2 for el1, el2 in zip_longest(path1, path2) if el1 != el2]
+    print(path1)
+    print(path2)
 
 with open('main_hsm.c', 'w') as f:
     events_seq = events_def(event_list)

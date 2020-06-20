@@ -1,3 +1,4 @@
+from itertools import zip_longest
 from itertools import chain
 import lark
 
@@ -399,7 +400,7 @@ initial_state = [
     {},
     {},
     ["S1", "S2"]
-    ]
+]
 
 # A lista abaixo não deveria ser um conjunto?
 # event_list = ['ev1', 'ev2', 'ev3', 'ev11', 'ev22',
@@ -548,7 +549,7 @@ state callback functions"""
         # Transições internas
         for (ev, gc), action in d3.items():
             yield cb_definition_body5_str.format(ev, gc, action)
-       
+
         yield cb_definition_end_str
 
 #
@@ -586,12 +587,16 @@ push_init_path_str = """                push_state(fn_{}_cb);               \\
                 dispatch(ENTRY_EVENT);          \\
 """
 
+tran_local_begin_str = """
+#define {} do {{                 \\
+"""
+
 tran_init_name_str = "fn_{}_init_{}_tran()"
 tran_local_name_str = "fn_{}_local_{}_tran()"
 tran_ext_name_str = "fn_{}_{}_tran()"
 
 tran_end_str = """
-        }} while (0)
+        } while (0)
 """
 
 
@@ -609,6 +614,7 @@ def transitions2_def():
         cur_state = bottom_up_state_dict[cur_state]
     path = path[::-1]
 
+    # Gerando transições iniciais
     yield tran_top_init_begin_str
     for state in path:
         yield push_init_path_str.format(state)
@@ -616,14 +622,27 @@ def transitions2_def():
         yield "\t\tdispatch(INIT_EVENT);       \\\n"
     yield tran_end_str
 
-    # Gerando transições iniciais
     for src_state, state_info in state_dict.items():
         for gc, (dst_state, action) in state_info[0].items():
             yield tran_init_def_begin_str.format(
                 tran_init_name_str.format(src_state, dst_state))
             yield tran_end_str
 
-    # Gerando transições locais
+    # Gerando transições locais     -       Falta ler do dicionário
+    src_state, dest_state = "S1", "S122"
+    path, cur_state = [], dest_state
+    while cur_state != src_state:
+        path.append(cur_state)
+        cur_state = bottom_up_state_dict[cur_state]
+    path = path[::-1]
+
+    yield tran_local_begin_str.format(
+        tran_local_name_str.format(src_state, dest_state))
+    for state in path:
+        yield push_init_path_str.format(state)
+    if state_dict[dest_state][-1]:
+        yield "\t\tdispatch(INIT_EVENT);       \\\n"
+    yield tran_end_str
 
     # Gerando transições externas
     src_state, dst_state = "S11", "S2"
@@ -633,8 +652,6 @@ def transitions2_def():
         cur_state = bottom_up_state_dict[cur_state]
     path2 = path2[::-1]
 
-    from itertools import zip_longest
-   
     cur_state = src_state
     while cur_state != "[*]":
         path1.append(cur_state)

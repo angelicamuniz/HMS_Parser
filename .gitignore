@@ -1,4 +1,5 @@
 main_hsm.txt
 main_hsm.c
+transitions.h
 venv
 .mypy_cache

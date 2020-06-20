@@ -588,6 +588,14 @@ push_init_path_str = """                push_state(fn_{}_cb);\t\t\t\\
 """
 dispatch_init_str = "\t\tdispatch(INIT_EVENT);\t\t\t\\\n"
 
+pop_exit_path_str = """                dispatch(EXIT_EVENT);\t\t\t\\
+                pop_state({});\t\t\t\\
+"""
+
+replace_exit_path_str = """                dispatch(EXIT_EVENT);\t\t\t\\
+                replace_state({});\t\t\t\\
+"""                
+
 tran_local_begin_str = """
 #define {} do {{\t\t\t\\
 """

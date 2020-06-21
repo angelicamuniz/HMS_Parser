@@ -3,9 +3,10 @@ from itertools import chain
 import lark
 
 # Definição da gramática:
-grammar = """root: (state | transition)*
-state: "state" STATE "{" (state | transition | internal_transition)* "}"
-transition: (STATE | ENDPOINT)? "->" (STATE | ENDPOINT) ":" (TRIGGER ("," TRIGGER)*)? (("[" GUARD "]")? ("/" BEHAVIOR)?)?
+grammar = """root: (state | transition | initial_transition)*
+state: "state" STATE "{" (state | transition | initial_transition | internal_transition)* "}"
+initial_transition: ENDPOINT "->" STATE ":" ("[" GUARD "]")? ("/" BEHAVIOR)?
+transition: (STATE)? "->" ("local")? (STATE | ENDPOINT) ":" (TRIGGER ("," TRIGGER)*)? ("[" GUARD "]")? ("/" BEHAVIOR)?
 internal_transition: ":" TRIGGER (("," TRIGGER)*)? ("[" GUARD "]")? ("/" BEHAVIOR)?
 
 STATE: CNAME
@@ -85,12 +86,17 @@ def processa_arvore(a):
         for el in lst:
             processa_arvore(el)
     elif a.data == "transition":
-        src, dest, *rest = a.children
         print("TRANSITION: {} children".format(len(a.children)))
         for el in a.children:
             processa_token(el)
     elif a.data == "internal_transition":
         print("INTERNALTRANSITION: {} children".format(len(a.children)))
+        for el in a.children:
+            processa_token(el)
+    elif a.data == "initial_transition":
+        print("INITIALTRANSITION: {} children".format(len(a.children)))
+        for el in a.children:
+            processa_token(el)
     else:
         print("UNKNOWN: {}".format(a.data))
 
@@ -225,6 +231,7 @@ def pretty(tree, indentacao=""):
 #
 #     - um dicionário para representar as transições iniciais
 #     - um dicionário para representar as transições externas
+#     - um dicionário para representar as transições locais
 #     - um dicionário para representar as transições internas
 #     - uma lista de strings representando os subestados do estado
 #
@@ -238,18 +245,18 @@ def pretty(tree, indentacao=""):
 # si uma lista (potencialmente vazia) com duas strings, uma
 # representando o estado-destino e outra, a ação.
 #
-# O segundo e o terceiro dicionários tem como chaves tuplas de duas
+# O segundo, o terceiro e o quarto dicionários tem como chaves tuplas de duas
 # strings representando o evento e a condição de guarda associada (se
 # não houver condição de guarda a segunda string será a string vazia).
-# No caso do dicionário relativo às transições externas, cada chave
+# No caso dos dicionários relativos às transições externas e às transições locais (segundo e terceiro dicionários), cada chave
 # tem associada a si uma tupla consistindo de duas strings, uma
 # representando o estado-destino e a outra a ação associada à
 # transição.
 #
-# Por último, cada chave do terceiro dicionário está associada a uma
+# Por último, cada chave do quarto dicionário está associada a uma
 # string representando a ação da transição interna.
 #
-# O quarto elemento dos itens acima é a lista de strings representando
+# O quinto elemento dos itens acima é a lista de strings representando
 # os subestados.  Esta lista pode ser vazia se o estado não for um
 # superestado.  Cada string nesta lista representa um subestado e
 # também é uma chave do dicionário de estados.
@@ -268,7 +275,7 @@ state_dict = {
             "foo == 1": ["S112", "foo = 0"],
             "c == 1": ["S122", "c = 0" ],
         },
-        # Transições externas" - dicionário
+        # Transições externas - dicionário
         {
             ("ev1", "foo == 0"): ("S2", "foo = 1"),
             ("ev2", "foo == 0"): ("S2", "foo = 1"),
@@ -277,6 +284,8 @@ state_dict = {
             # Transição local
             ("ev4", "foo == 1"): ("S121", "foo = 0"),
         },
+        # Transições locais - dicionário
+        {},
         # Transições internas - dicionário
         {},
         # Lista de subestados
@@ -286,6 +295,8 @@ state_dict = {
         # Transições iniciais - dicionário
         {"": ["S111", ""]},
         # Transições externas" - dicionário
+        {},
+        # Transições locais - dicionário
         {},
         # Transições internas - dicionário
         {},
@@ -297,6 +308,8 @@ state_dict = {
         {},
         # Transições externas" - dicionário
         {},
+        # Transições locais - dicionário
+        {},
         # Transições internas - dicionário
         {},
         # Lista de subestados
@@ -306,6 +319,8 @@ state_dict = {
         # Transições iniciais - dicionário
         {},
         # Transições externas" - dicionário
+        {},
+        # Transições locais - dicionário
         {},
         # Transições internas - dicionário
         {},
@@ -317,6 +332,8 @@ state_dict = {
         {"": ["S122", ""]},
         # Transições externas" - dicionário
         {},
+        # Transições locais - dicionário
+        {},
         # Transições internas - dicionário
         {},
         # Lista de subestados
@@ -327,6 +344,8 @@ state_dict = {
         {},
         # Transições externas" - dicionário
         {},
+        # Transições locais - dicionário
+        {},
         # Transições internas - dicionário
         {},
         # Lista de subestados
@@ -336,6 +355,8 @@ state_dict = {
         # Transições iniciais - dicionário
         {},
         # Transições externas" - dicionário
+        {},
+        # Transições locais - dicionário
         {},
         # Transições internas - dicionário
         {},
@@ -350,6 +371,8 @@ state_dict = {
             ("ev3", "foo == 0"): ("S1", "foo = 1"),
             ("ev5", ""): ("S21", ""),
         },
+        # Transições locais - dicionário
+        {},
         # Transições internas - dicionário
         {
             ("ev11", "foo == 1"): "foo = 0",
@@ -365,6 +388,8 @@ state_dict = {
         {},
         # Transições externas" - dicionário
         {("ev21", "foo == 0"): ("S22", "foo = 1")},
+        # Transições locais - dicionário
+        {},
         # Transições internas - dicionário
         {},
         # Lista de subestados
@@ -374,6 +399,8 @@ state_dict = {
         # Transições iniciais - dicionário
         {},
         # Transições externas" - dicionário
+        {},
+        # Transições locais - dicionário
         {},
         # Transições internas - dicionário
         {},
@@ -397,8 +424,6 @@ bottom_up_state_dict = {
 
 initial_state = [
     {"": ["S11", ""]},
-    {},
-    {},
     ["S1", "S2"]
 ]
 
@@ -420,9 +445,9 @@ initial_state = [
 #
 
 
-event_list = list(set(ev for d1, d2, d3, lst
+event_list = list(set(ev for d1, d2, d3, d4, lst
                       in state_dict.values()
-                      for (ev, gc) in chain(d2, d3)))
+                      for (ev, gc) in chain(d2, d3, d4)))
 
 
 event_header_str = """#include "event.h"
@@ -521,7 +546,7 @@ def cb_definitions_def(state_dict):
     """Generator function to generate the code lines for defining the
 state callback functions"""
     yield cb_header_str
-    for state, (d1, d2, d3, lst) in state_dict.items():
+    for state, (d1, d2, d3, d4, lst) in state_dict.items():
         yield cb_definition_begin_str.format(state)
         # Transições iniciais
         if d1:
@@ -604,8 +629,7 @@ tran_init_name_str = "fn_{}_init_{}_tran()"
 tran_local_name_str = "fn_{}_local_{}_tran()"
 tran_ext_name_str = "fn_{}_{}_tran()"
 
-tran_end_str = """
-        } while (0)
+tran_end_str = """        } while (0)
 """
 
 

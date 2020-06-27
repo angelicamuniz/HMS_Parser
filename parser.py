@@ -281,11 +281,11 @@ state_dict = {
             ("ev2", "foo == 0"): ("S2", "foo = 1"),
             ("ev3", "foo == 0"): ("S2", "foo = 1"),
             ("EV1", ""): ("S21", ""),
-            # Transição local
             ("ev4", "foo == 1"): ("S121", "foo = 0"),
         },
         # Transições locais - dicionário
-        {},
+        {
+        },
         # Transições internas - dicionário
         {},
         # Lista de subestados
@@ -297,7 +297,8 @@ state_dict = {
         # Transições externas" - dicionário
         {},
         # Transições locais - dicionário
-        {},
+        {
+        },
         # Transições internas - dicionário
         {},
         # Lista de subestados
@@ -309,7 +310,9 @@ state_dict = {
         # Transições externas" - dicionário
         {},
         # Transições locais - dicionário
-        {},
+        {
+            ("ev1", "foo == 2"): ("S1", "foo = 3")
+        },
         # Transições internas - dicionário
         {},
         # Lista de subestados
@@ -372,7 +375,9 @@ state_dict = {
             ("ev5", ""): ("S21", ""),
         },
         # Transições locais - dicionário
-        {},
+        {
+            ("ev1", ""): ("S21", ""),
+        },
         # Transições internas - dicionário
         {
             ("ev11", "foo == 1"): "foo = 0",
@@ -387,7 +392,9 @@ state_dict = {
         # Transições iniciais - dicionário
         {},
         # Transições externas" - dicionário
-        {("ev21", "foo == 0"): ("S22", "foo = 1")},
+        {
+            ("ev21", "foo == 0"): ("S22", "foo = 1")
+        },
         # Transições locais - dicionário
         {},
         # Transições internas - dicionário
@@ -640,6 +647,7 @@ def transitions1_def():
 
 def transitions2_def():
     global state_dict, bottom_up_state_dict
+
     dest_state = initial_state[0][""][0]
     path, cur_state = [], dest_state
     while cur_state != "[*]":
@@ -671,40 +679,47 @@ def transitions2_def():
                 yield dispatch_init_str
             yield tran_end_str
 
-    # Gerando transições locais     -       Falta ler do dicionário
-    src_state, dest_state = "S1", "S122"
-    path, cur_state = [], dest_state
-    while cur_state != src_state:
-        path.append(cur_state)
-        cur_state = bottom_up_state_dict[cur_state]
-    path = path[::-1]
+    for state, (d1, d2, d3, d4, lst) in state_dict.items():
+        # Gerando transições locais     -       Falta ler do dicionário
+        src_state, dest_state = "S1", "S122"
+        path, cur_state = [], dest_state
+        while cur_state != src_state:
+            path.append(cur_state)
+            cur_state = bottom_up_state_dict[cur_state]
+            path = path[::-1]
 
-    yield tran_local_begin_str.format(
-        tran_local_name_str.format(src_state, dest_state))
-    for state in path:
-        yield push_init_path_str.format(state)
-    if state_dict[dest_state][-1]:
-        yield dispatch_init_str
-    yield tran_end_str
+        yield tran_local_begin_str.format(
+            tran_local_name_str.format(src_state, dest_state))
+        for state in path:
+            yield push_init_path_str.format(state)
+            if state_dict[dest_state][-1]:
+                yield dispatch_init_str
+                yield tran_end_str
 
     # Gerando transições externas
-    src_state, dst_state = "S11", "S2"
-    path1, path2, cur_state = [], [], dst_state
-    while cur_state != "[*]":
-        path2.append(cur_state)
-        cur_state = bottom_up_state_dict[cur_state]
-    path2 = path2[::-1]
+    for state, (_, d2, _, _, _) in state_dict.items():
+        for (ev, gc), (dst_state, action) in d2.items():
+            path2, cur_state = [], dst_state
+            while cur_state != "[*]":
+                path2.append(cur_state)
+                cur_state = bottom_up_state_dict[cur_state]
+            path2 = path2[::-1]
 
-    cur_state = src_state
-    while cur_state != "[*]":
-        path1.append(cur_state)
-        cur_state = bottom_up_state_dict[cur_state]
-    path1 = path1[::-1]
+            path1, cur_state = [], state
+            while cur_state != "[*]":
+                path1.append(cur_state)
+                cur_state = bottom_up_state_dict[cur_state]
+            path1 = path1[::-1]
 
-    path1 = [el1 for el1, el2 in zip_longest(path1, path2) if el1 != el2]
-    path2 = [el2 for el1, el2 in zip_longest(path1, path2) if el1 != el2]
-    print(path1)
-    print(path2)
+            print(path1)
+            print(path2)
+            print("-----")
+            # path1a = [el1 for el1, el2 in zip_longest(path1, path2) if el1 and el1 != el2]
+            # path2 = [el2 for el1, el2 in zip_longest(path1, path2) if el2 and el1 != el2]
+            # path1 = path1a
+            # print(path1)
+            # print(path2)
+            # print("**********")
 
 
 with open('main_hsm.c', 'w') as f:

@@ -1,0 +1,45 @@
+Transições externas
+4 possíveis combinações
+
+- path1 vazio 	path2 vazio	S1 -> S1   (EXIT | ENTRY)
+
+- path1 !vazio	path2 vazio	S11 -> S1  Saindo (EXIT | pop_state | ... até o primeiro de path1 | EXIT | ENTRY)
+
+- path1 !vazio	path2 !vazio	S1 -> S2 ou 
+				S11 -> S211 (EXIT | pop_state | ... até o segundo elemento de path1 | EXIT | repleace | ENTRY | push_state | ENTRY | ... até o destino)
+			(EXIT | pop_state | ... até o primeiro elemento de path1 | EXIT | pop_state | push_state | ENTRY | push_state | ENTRY | ... até o destino)
+
+- path1 vazio 	path2 !vazio	S1 -> S11  Entrando (EXIT | ENTRY | push_state | ENTRY | ... até o destino)
+
+
+
+Para path1: 				(EXIT | pop_state | ... até o primeiro de path1) para cada elemento de path1
+
+Se path1 vazio ou path2 vazio: 	(EXIT | ENTRY)
+
+Para path2: 				(push_state | ENTRY | ... até o primeiro de path2) para cada elemento de path2
+
+Se o estado destino for superestado: 	(INIT)
+
+---
+
+Transições locais
+3 possíveis combinações
+
+- path1 vazio 	path2 vazio	S1 -> S1   (verifica a gc e executa a ação, não há transição)
+
+- path1 !vazio	path2 vazio	S11 -> S1  Saindo (EXIT | pop_state | ... até o primeiro de path1)
+
+- path1 vazio 	path2 !vazio	S1 -> S11  Entrando (push_state | ENTRY | ... até o destino)
+
+
+
+Para path1: 				(EXIT | pop_state | ... até o primeiro de path1) para cada elemento de path1
+
+Para path2: 				(push_state | ENTRY | ... até o primeiro de path2) para cada elemento de path2
+
+Se o estado destino for superestado: 	(INIT)
+
+--
+
+Implementar tudo como uma função que recebe uma variável bool que determina se é local ou externa (linha 18) [if (!path1 or !path2) and bool:]

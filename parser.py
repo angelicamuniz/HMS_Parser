@@ -311,7 +311,7 @@ state_dict = {
         {},
         # Transições locais - dicionário
         {
-            ("ev1", "foo == 2"): ("S1", "foo = 3")
+            ("ev1", "foo == 2"): ("S1", "foo = 3;")
         },
         # Transições internas - dicionário
         {},
@@ -322,7 +322,9 @@ state_dict = {
         # Transições iniciais - dicionário
         {},
         # Transições externas" - dicionário
-        {},
+        {
+            ("ev2", ""): ("S1", "foo = 1;")
+        },
         # Transições locais - dicionário
         {},
         # Transições internas - dicionário
@@ -358,7 +360,9 @@ state_dict = {
         # Transições iniciais - dicionário
         {},
         # Transições externas" - dicionário
-        {},
+        {
+            ("ev3", ""): ("S121", "foo = 10;")
+        },
         # Transições locais - dicionário
         {},
         # Transições internas - dicionário
@@ -371,7 +375,7 @@ state_dict = {
         {"": ["S22", ""]},
         # Transições externas" - dicionário
         {
-            ("ev3", "foo == 0"): ("S1", "foo = 1"),
+            ("ev3", "foo == 0"): ("S1", "foo = 1;"),
             ("ev5", ""): ("S21", ""),
         },
         # Transições locais - dicionário
@@ -602,7 +606,7 @@ tran_top_init_begin_str = """
 #define Top_init_tran() do {{\t\t\t\t\\
 """
 
-tran_init_def_begin_str = """
+tran_def_begin_str = """
 #define {} do {{\t\t\t\\
 """
 
@@ -626,6 +630,10 @@ pop_exit_path_str = """                dispatch(EXIT_EVENT);\t\t\t\\
 
 replace_exit_path_str = """                dispatch(EXIT_EVENT);\t\t\t\\
                 replace_state({});\t\t\t\\
+"""                
+
+pop_exit_path_str = """                dispatch(EXIT_EVENT);\t\t\t\\
+                pop_state();\t\t\t\\
 """                
 
 tran_local_begin_str = """
@@ -665,7 +673,7 @@ def transitions2_def():
 
     for src_state, state_info in state_dict.items():
         for gc, (dst_state, action) in state_info[0].items():
-            yield tran_init_def_begin_str.format(
+            yield tran_def_begin_str.format(
                 tran_init_name_str.format(src_state, dst_state))
             path, cur_state = [], dst_state
             while cur_state != src_state:
@@ -697,8 +705,14 @@ def transitions2_def():
                 yield tran_end_str
 
     # Gerando transições externas
-    for state, (_, d2, _, _, _) in state_dict.items():
+    for state, (_, d2, _, _, children_lst) in state_dict.items():
         for (ev, gc), (dst_state, action) in d2.items():
+            yield tran_def_begin_str.format(
+                tran_ext_name_str.format(state, dst_state))
+
+            if children_lst:
+                yield "\t\texit_inner_states();     \\\n"
+
             path2, cur_state = [], dst_state
             while cur_state != "[*]":
                 path2.append(cur_state)
@@ -711,15 +725,24 @@ def transitions2_def():
                 cur_state = bottom_up_state_dict[cur_state]
             path1 = path1[::-1]
 
-            print(path1)
-            print(path2)
             print("-----")
-            # path1a = [el1 for el1, el2 in zip_longest(path1, path2) if el1 and el1 != el2]
-            # path2 = [el2 for el1, el2 in zip_longest(path1, path2) if el2 and el1 != el2]
-            # path1 = path1a
             # print(path1)
             # print(path2)
+            path1a = [el1 for el1, el2 in zip_longest(path1, path2) if el1 and el1 != el2]
+            path2 = [el2 for el1, el2 in zip_longest(path1, path2) if el2 and el1 != el2]
+            path1 = path1a
+            print(path1)
+            print(path2)
             # print("**********")
+
+            for el in path1[1:][::-1]:
+                yield pop_exit_path_str
+
+            parent = bottom_up_state_dict[path1[0]]
+            if path1:
+                yield replace_exit_path_str
+
+            yield tran_end_str
 
 
 with open('main_hsm.c', 'w') as f:

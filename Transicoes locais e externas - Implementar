@@ -26,7 +26,7 @@ Se o estado destino for superestado: 	(INIT)
 Transições locais
 3 possíveis combinações
 
-- path1 vazio 	path2 vazio	S1 -> S1   (verifica a gc e executa a ação, não há transição)
+- path1 vazio 	path2 vazio	S1 -> S1   (verifica a gc e executa a ação, não há transição)		= Transição INTERNA
 
 - path1 !vazio	path2 vazio	S11 -> S1  Saindo (EXIT | pop_state | ... até o primeiro de path1)
 

@@ -628,13 +628,9 @@ pop_exit_path_str = """                dispatch(EXIT_EVENT);\t\t\t\\
                 pop_state({});\t\t\t\\
 """
 
-replace_exit_path_str = """                dispatch(EXIT_EVENT);\t\t\t\\
-                replace_state({});\t\t\t\\
-"""                
-
 pop_exit_path_str = """                dispatch(EXIT_EVENT);\t\t\t\\
                 pop_state();\t\t\t\\
-"""                
+"""
 
 tran_local_begin_str = """
 #define {} do {{\t\t\t\\
@@ -706,7 +702,7 @@ def transitions2_def():
 
     # Gerando transições externas
     for state, (_, d2, _, _, children_lst) in state_dict.items():
-        for (ev, gc), (dst_state, action) in d2.items():
+        for dst_state, _ in d2.values():
             yield tran_def_begin_str.format(
                 tran_ext_name_str.format(state, dst_state))
 
@@ -738,9 +734,7 @@ def transitions2_def():
             for el in path1[1:][::-1]:
                 yield pop_exit_path_str
 
-            parent = bottom_up_state_dict[path1[0]]
-            if path1:
-                yield replace_exit_path_str
+            # parent = bottom_up_state_dict[path1[0]]
 
             yield tran_end_str
 

@@ -272,20 +272,19 @@ state_dict = {
         # Transições iniciais - dicionário
         {
             "": ["S11", ""],
-            "foo == 1": ["S112", "foo = 0"],
-            "c == 1": ["S122", "c = 0" ],
+            "foo == 1": ["S112", "foo = 0;"],
+            "c == 1": ["S122", "c = 0;"],
         },
         # Transições externas - dicionário
         {
-            ("ev1", "foo == 0"): ("S2", "foo = 1"),
-            ("ev2", "foo == 0"): ("S2", "foo = 1"),
-            ("ev3", "foo == 0"): ("S2", "foo = 1"),
+            ("ev1", "foo == 0"): ("S2", "foo = 1;"),
+            ("ev2", "foo == 0"): ("S2", "foo = 1;"),
+            ("ev3", "foo == 0"): ("S2", "foo = 1;"),
             ("EV1", ""): ("S21", ""),
-            ("ev4", "foo == 1"): ("S121", "foo = 0"),
+            ("ev4", "foo == 1"): ("S121", "foo = 0;"),
         },
         # Transições locais - dicionário
-        {
-        },
+        {},
         # Transições internas - dicionário
         {},
         # Lista de subestados
@@ -297,8 +296,7 @@ state_dict = {
         # Transições externas" - dicionário
         {},
         # Transições locais - dicionário
-        {
-        },
+        {},
         # Transições internas - dicionário
         {},
         # Lista de subestados
@@ -384,10 +382,10 @@ state_dict = {
         },
         # Transições internas - dicionário
         {
-            ("ev11", "foo == 1"): "foo = 0",
-            ("ev22", "foo == 1"): "foo = 0",
-            ("ev33", "foo == 1"): "foo = 0",
-            ("ev44", "foo == 1"): "foo = 0",
+            ("ev11", "foo == 1"): "foo = 0;",
+            ("ev22", "foo == 1"): "foo = 0;",
+            ("ev33", "foo == 1"): "foo = 0;",
+            ("ev44", "foo == 1"): "foo = 0;",
         },
         # Lista de subestados
         ["S21", "S22"],
@@ -397,7 +395,7 @@ state_dict = {
         {},
         # Transições externas" - dicionário
         {
-            ("ev21", "foo == 0"): ("S22", "foo = 1")
+            ("ev21", "foo == 0"): ("S22", "foo = 1;")
         },
         # Transições locais - dicionário
         {},
@@ -625,15 +623,19 @@ push_init_path_str = """                push_state(fn_{}_cb);\t\t\t\\
 dispatch_init_str = "\t\tdispatch(INIT_EVENT);\t\t\t\\\n"
 
 pop_exit_path_str = """                dispatch(EXIT_EVENT);\t\t\t\\
-                pop_state({});\t\t\t\\
+                pop_state({});\t\t\t\t\\
 """
 
 pop_exit_path_str = """                dispatch(EXIT_EVENT);\t\t\t\\
-                pop_state();\t\t\t\\
+                pop_state();\t\t\t\t\\
 """
 
 tran_local_begin_str = """
 #define {} do {{\t\t\t\\
+"""
+
+tran_ext_exit_entry_str = """                dispatch(EXIT_EVENT);\t\t\t\\
+                dispatch(ENTRY_EVENT);\t\t\t\\
 """
 
 tran_init_name_str = "fn_{}_init_{}_tran()"
@@ -648,6 +650,10 @@ def transitions1_def():
     global state_dict
     yield tran_header_str.format()
 
+
+def transitions2_path_def(path1, path2, local):
+    for state in path1[::-1]:
+        yield pop_exit_path_str
 
 def transitions2_def():
     global state_dict, bottom_up_state_dict
@@ -683,9 +689,11 @@ def transitions2_def():
                 yield dispatch_init_str
             yield tran_end_str
 
-    for state, (d1, d2, d3, d4, lst) in state_dict.items():
-        # Gerando transições locais     -       Falta ler do dicionário
+    # Gerando transições locais     -       Falta ler do dicionário
+    # for state, (_, _, _, d4, lst) in state_dict.items():
         src_state, dest_state = "S1", "S122"
+    #     src_state = state
+    #     for dest_state, _ in d4.values():
         path, cur_state = [], dest_state
         while cur_state != src_state:
             path.append(cur_state)
@@ -694,20 +702,21 @@ def transitions2_def():
 
         yield tran_local_begin_str.format(
             tran_local_name_str.format(src_state, dest_state))
-        for state in path:
-            yield push_init_path_str.format(state)
+        for state_p in path:
+            yield push_init_path_str.format(state_p)
             if state_dict[dest_state][-1]:
                 yield dispatch_init_str
                 yield tran_end_str
 
     # Gerando transições externas
     for state, (_, d2, _, _, children_lst) in state_dict.items():
+        external_trans = True
         for dst_state, _ in d2.values():
             yield tran_def_begin_str.format(
                 tran_ext_name_str.format(state, dst_state))
 
             if children_lst:
-                yield "\t\texit_inner_states();     \\\n"
+                yield "\t\texit_inner_states();\t\t\t\\\n"
 
             path2, cur_state = [], dst_state
             while cur_state != "[*]":
@@ -731,8 +740,18 @@ def transitions2_def():
             print(path2)
             # print("**********")
 
-            for el in path1[1:][::-1]:
+            for state in path1[::-1]:
                 yield pop_exit_path_str
+            if (not path1 or not path2) and external_trans:
+                yield tran_ext_exit_entry_str
+            for state in path2:
+                yield push_init_path_str.format(state)
+            if state_dict[dst_state][-1]:
+                yield dispatch_init_str
+
+
+            # for el in path1[1:][::-1]:
+            #     yield pop_exit_path_str
 
             # parent = bottom_up_state_dict[path1[0]]
 

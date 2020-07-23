@@ -42,4 +42,9 @@ Se o estado destino for superestado: 	(INIT)
 
 --
 
-Implementar tudo como uma função que recebe uma variável bool que determina se é local ou externa (linha 18) [if (!path1 or !path2) and bool:]
+Implementar tudo como uma função que recebe uma variável bool que determina se é local ou externa (linha 18) [ if (!path1 or !path2) and bool: ]
+
+Deu erro na parte das transições locais, na linha que salva o dest_state
+Tem dois pop_exit_path_str, um com {} e o outro sem
+Conferir no main a geração dos ifs, porque tá ficando com if quando não tem gc. exemplo fn_S2_cb
+

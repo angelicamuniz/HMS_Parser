@@ -516,6 +516,13 @@ cb_definition_body5_str = """    case {}:
         break;
 """
 
+cb_definition_body6_str = """    case {}:
+        {}
+        {};
+        return EVENT_HANDLED;
+    break;
+"""
+
 cb_definition_end_str = """    }
     return EVENT_NOT_HANDLED;
 }
@@ -577,7 +584,11 @@ state callback functions"""
 
         # Transições externas
         for (ev, gc), (final_state, action) in d2.items():
-            yield cb_definition_body4_str.format(ev, gc, action,
+            if gc:
+                yield cb_definition_body4_str.format(ev, gc, action,
+                                                 tran_ext_name_str.format(state, final_state))
+            else:
+                yield cb_definition_body6_str.format(ev, action,
                                                  tran_ext_name_str.format(state, final_state))
 
         # Transições internas
@@ -690,27 +701,28 @@ def transitions2_def():
             yield tran_end_str
 
     # Gerando transições locais     -       Falta ler do dicionário
-    # for state, (_, _, _, d4, lst) in state_dict.items():
-        src_state, dest_state = "S1", "S122"
-    #     src_state = state
-    #     for dest_state, _ in d4.values():
-        path, cur_state = [], dest_state
+    external_trans = False
+    for state, (_, _, _, d4, lst) in state_dict.items():
+        src_state, dst_state = "S1", "S122"
+        # src_state = state
+        # for dst_state, _ in d4.values():
+        path, cur_state = [], dst_state
         while cur_state != src_state:
             path.append(cur_state)
             cur_state = bottom_up_state_dict[cur_state]
             path = path[::-1]
 
         yield tran_local_begin_str.format(
-            tran_local_name_str.format(src_state, dest_state))
+            tran_local_name_str.format(src_state, dst_state))
         for state_p in path:
             yield push_init_path_str.format(state_p)
-            if state_dict[dest_state][-1]:
+            if state_dict[dst_state][-1]:
                 yield dispatch_init_str
                 yield tran_end_str
 
     # Gerando transições externas
+    external_trans = True
     for state, (_, d2, _, _, children_lst) in state_dict.items():
-        external_trans = True
         for dst_state, _ in d2.values():
             yield tran_def_begin_str.format(
                 tran_ext_name_str.format(state, dst_state))

@@ -591,6 +591,15 @@ state callback functions"""
                 yield cb_definition_body6_str.format(ev, action,
                                                  tran_ext_name_str.format(state, final_state))
 
+        # Transições locais
+        for (ev, gc), (final_state, action) in d3.items():
+            if gc:
+                yield cb_definition_body4_str.format(ev, gc, action,
+                                                 tran_local_name_str.format(state, final_state))
+            else:
+                yield cb_definition_body6_str.format(ev, action,
+                                                 tran_local_name_str.format(state, final_state))
+
         # Transições internas
         for (ev, gc), action in d4.items():
             yield cb_definition_body5_str.format(ev, gc, action)

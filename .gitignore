@@ -3,4 +3,4 @@ main_hsm.c
 transitions.h
 venv
 .mypy_cache
-.vscode/settings.json
+.settings.json

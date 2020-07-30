@@ -702,23 +702,57 @@ def transitions2_def():
 
     # Gerando transições locais     -       Falta ler do dicionário
     external_trans = False
-    for state, (_, _, _, d4, lst) in state_dict.items():
-        src_state, dst_state = "S1", "S122"
-        # src_state = state
-        # for dst_state, _ in d4.values():
-        path, cur_state = [], dst_state
-        while cur_state != src_state:
-            path.append(cur_state)
-            cur_state = bottom_up_state_dict[cur_state]
-            path = path[::-1]
+    for state, (_, _, d3, _, lst) in state_dict.items():
+        for dst_state, _ in d3.values():
+            yield tran_local_begin_str.format(
+                 tran_local_name_str.format(state, dst_state))
+            path2, cur_state = [], dst_state
+            while cur_state != "[*]":
+                path2.append(cur_state)
+                cur_state = bottom_up_state_dict[cur_state]
+            path2 = path2[::-1]
 
-        yield tran_local_begin_str.format(
-            tran_local_name_str.format(src_state, dst_state))
-        for state_p in path:
-            yield push_init_path_str.format(state_p)
+            path1, cur_state = [], state
+            while cur_state != "[*]":
+                path1.append(cur_state)
+                cur_state = bottom_up_state_dict[cur_state]
+            path1 = path1[::-1]
+
+            print("-----")
+            # print(path1)
+            # print(path2)
+            path1a = [el1 for el1, el2 in zip_longest(path1, path2) if el1 and el1 != el2]
+            path2 = [el2 for el1, el2 in zip_longest(path1, path2) if el2 and el1 != el2]
+            path1 = path1a
+            print(path1)
+            print(path2)
+            # print("**********")
+
+            for state in path1[::-1]:
+                yield pop_exit_path_str
+            if (not path1 or not path2) and external_trans:
+                yield tran_ext_exit_entry_str
+            for state in path2:
+                yield push_init_path_str.format(state)
             if state_dict[dst_state][-1]:
                 yield dispatch_init_str
-                yield tran_end_str
+
+        # src_state, dst_state = "S1", "S122"
+        # src_state = state
+        # for dst_state, _ in d3.values():
+        #     path, cur_state = [], dst_state
+        #     while cur_state != src_state:
+        #         path.append(cur_state)
+        #         cur_state = bottom_up_state_dict[cur_state]
+        #         path = path[::-1]
+
+        #     yield tran_local_begin_str.format(
+        #         tran_local_name_str.format(src_state, dst_state))
+        #     for state_p in path:
+        #         yield push_init_path_str.format(state_p)
+        #         if state_dict[dst_state][-1]:
+        #             yield dispatch_init_str
+        #             yield tran_end_str
 
     # Gerando transições externas
     external_trans = True

@@ -47,4 +47,4 @@ Implementar tudo como uma função que recebe uma variável bool que determina s
 Deu erro na parte das transições locais, na linha que salva o dest_state
 Tem dois pop_exit_path_str, um com {} e o outro sem
 Conferir no main a geração dos ifs, porque tá ficando com if quando não tem gc. exemplo fn_S2_cb (transições locais)
-
+Na transição local, subindo ou descendo nos níveis, é necessário exit_inner_states?

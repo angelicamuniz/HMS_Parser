@@ -592,7 +592,7 @@ state callback functions"""
                                                  tran_ext_name_str.format(state, final_state))
 
         # Transições internas
-        for (ev, gc), action in d3.items():
+        for (ev, gc), action in d4.items():
             yield cb_definition_body5_str.format(ev, gc, action)
 
         yield cb_definition_end_str

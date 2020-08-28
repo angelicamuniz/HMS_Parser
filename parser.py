@@ -1,12 +1,14 @@
 from itertools import zip_longest
 from itertools import chain
+import sys
 import lark
 
 # Definição da gramática:
 grammar = """root: (state | transition | initial_transition)*
-state: "state" STATE "{" (state | transition | initial_transition | internal_transition)* "}"
+state: "state" STATE "{" (state | transition | initial_transition | internal_transition | local_transition)* "}"
 initial_transition: ENDPOINT "->" STATE ":" ("[" GUARD "]")? ("/" BEHAVIOR)?
-transition: (STATE)? "->" ("local")? (STATE | ENDPOINT) ":" (TRIGGER ("," TRIGGER)*)? ("[" GUARD "]")? ("/" BEHAVIOR)?
+local_transition: (STATE)? "->"  "local" (STATE | ENDPOINT) ":" (TRIGGER ("," TRIGGER)*)? ("[" GUARD "]")? ("/" BEHAVIOR)?
+transition: (STATE)? "->" (STATE | ENDPOINT) ":" (TRIGGER ("," TRIGGER)*) ("[" GUARD "]")? ("/" BEHAVIOR)?
 internal_transition: ":" TRIGGER (("," TRIGGER)*)? ("[" GUARD "]")? ("/" BEHAVIOR)?
 
 STATE: CNAME
@@ -29,8 +31,8 @@ text = """[*] -> S11 :
 
     state S1 {
         [*] -> S11 :
-        [*] -> S112 : ["foo == 1"] / "foo = 0"
-        [*] -> S122 : ["c == 1"] / "c = 0"
+        [*] -> S112 : ["foo == 1"] / "foo = 0;"
+        [*] -> S122 : ["c == 1"] / "c = 0;"
 
         state S11 {
             [*] -> S111 :
@@ -54,7 +56,7 @@ text = """[*] -> S11 :
 
         -> S2 : ev1, ev2, ev3 ["foo == 0"] / "foo = 1"
         -> S21 : EV1
-        -> S121 : ev1 ["foo == 1"] / "foo = 0"
+        -> S121 : ev4 ["foo == 1"] / "foo = 0"
     }
 
     state S2 {
@@ -68,135 +70,149 @@ text = """[*] -> S11 :
          : ev11, ev22, ev33, ev44 ["foo == 1"] / "foo = 0"
         -> S1 : ev3 ["foo == 0"] / "foo = 1"
         -> S21 : ev5
+        -> local S21 : ev6
     }
     S21 -> S22 : ev21 ["foo == 0"] / "foo = 1"
 """
 tree = parser.parse(text)
 # print(tree.pretty())
 
-
-def processa_token(tk):
-    print("TOKEN: type = {}, value = {}".format(tk.type, tk.value))
-
-
-def processa_arvore(a):
+def parse_states(a, parent, state_dict, bottom_up_state_dict):
     if a.data == "state":
         state, *lst = a.children
-        print("STATE: {} - {} children".format(state, len(lst)))
+        state = state.value
+        if state not in state_dict:
+            state_dict[state] = [{}, {}, {}, {}, []]
+        else:
+            print("ERROR: State {} was previously defined!".format(state))
+            sys.exit(-1)
+        bottom_up_state_dict[state] = parent
+        if parent != "[*]":
+            state_dict[parent][-1].append(state)
+        else:
+            initial_state[1].append(state)
         for el in lst:
-            processa_arvore(el)
-    elif a.data == "transition":
-        print("TRANSITION: {} children".format(len(a.children)))
-        for el in a.children:
-            processa_token(el)
-    elif a.data == "internal_transition":
-        print("INTERNALTRANSITION: {} children".format(len(a.children)))
-        for el in a.children:
-            processa_token(el)
-    elif a.data == "initial_transition":
-        print("INITIALTRANSITION: {} children".format(len(a.children)))
-        for el in a.children:
-            processa_token(el)
+            state_dict, bottom_up_state_dict = parse_states(el, state,
+                                                            state_dict, bottom_up_state_dict)
+
+    return state_dict, bottom_up_state_dict
+
+initial_state = [{}, []]
+state_dict, bottom_up_state_dict = {}, {}
+for child in tree.children:
+    state_dict, bottom_up_state_dict = parse_states(child, "[*]",
+                                                    state_dict, bottom_up_state_dict)
+
+def parse_external_local_tran(a, parent, transitions):
+    guard, behavior, triggers = "", "", []
+    print("Transition has {} grandchildren".format(len(a.children)))
+    children = a.children
+    (state1, state2), children = children[:2], children[2:]
+    if state2.type == "TRIGGER":
+        state1, state2, triggers = parent, state1.value, [state2.value]
     else:
-        print("UNKNOWN: {}".format(a.data))
+        state1, state2 = state1.value, state2.value
+    for el in children:
+        if el.type == "TRIGGER":
+            triggers.append(el.value)
+        elif el.type == "GUARD":
+            if not guard:
+                guard = el.value.strip("\"")
+            else:
+                print("ERROR: more than one guard condition ({})!".format(el.value))
+                sys.exit(-1)
+        elif el.type == "BEHAVIOR":
+            if not behavior:
+                behavior = el.value.strip("\"")
+            else:
+                print("ERROR: more than one behavior ({})!".format(el.value))
+                sys.exit(-1)
+    if parent == "[*]":
+        return
+    for trigger in triggers:
+        transitions[(trigger, guard)] = (state2, behavior)
+    print("TRANSITION: {} -> {}: {}{}".format(state1, state2, ", ".join(triggers),
+                                              " [{}] / {}".format(guard, behavior)))
 
+def parse_internal_tran(a, parent, transitions):
+    guard, behavior, triggers = "", "", []
+    print("Transition has {} grandchildren".format(len(a.children)))
+    children = a.children
+    for el in children:
+        if el.type == "TRIGGER":
+            triggers.append(el.value)
+        elif el.type == "GUARD":
+            if not guard:
+                guard = el.value.strip("\"")
+            else:
+                print("ERROR: more than one guard condition ({})!".format(el.value))
+                sys.exit(-1)
+        elif el.type == "BEHAVIOR":
+            if not behavior:
+                behavior = el.value.strip("\"")
+            else:
+                print("ERROR: more than one behavior ({})!".format(el.value))
+                sys.exit(-1)
+    if parent == "[*]":
+        return
+    for trigger in triggers:
+        transitions[(trigger, guard)] = behavior
+    print("INTERNAL TRANSITION: : {}{}".format(", ".join(triggers),
+                    " [{}] / {}".format(guard, behavior)))
 
-print("\n\n")
+def parse_initial_tran(a, transitions):
+    guard, behavior = "", ""
+    print("Initial transition has {} grandchildren".format(len(a.children)))
+    children = a.children
+    (_, state), children = children[:2], children[2:]
+    state = state.value
+    for el in children:
+        if el.type == "GUARD":
+            if not guard:
+                guard = el.value.strip("\"")
+            else:
+                print("ERROR: more than one guard condition ({})!".format(el.value))
+                sys.exit(-1)
+        elif el.type == "BEHAVIOR":
+            if not behavior:
+                behavior = el.value.strip("\"")
+            else:
+                print("ERROR: more than one behavior ({})!".format(el.value))
+                sys.exit(-1)
+    transitions[guard] = (state, behavior)
+    # print("TRANSITION: {} -> {}: {}{}".format(state1, state2, ", ".join(triggers),
+    #                                           " [{}] / {}".format(guard, behavior)))
 
+def parse_transitions(a, parent, state_dict):
+    if a.data == "state":
+        for el in a.children[1:]:
+            parse_transitions(el, a.children[0], state_dict)
+    elif a.data == "transition":
+        if parent == "[*]":
+            return
+        if parent not in state_dict:
+            print("Error")
+            sys.exit(-1)
+        parse_external_local_tran(a, parent, state_dict[parent][1])
+    elif a.data == "local_transition":
+        if parent == "[*]":
+            return
+        if parent not in state_dict:
+            print("Error")
+            sys.exit(-1)
+        parse_external_local_tran(a, parent, state_dict[parent][2])
+    elif a.data == "internal_transition":
+        parse_internal_tran(a, parent, state_dict[parent][3])
+    elif a.data == "initial_transition":
+        if parent == "[*]":
+            parse_initial_tran(a, initial_state[0])
+        else:
+            parse_initial_tran(a, state_dict[parent][0])
 
 for child in tree.children:
-    processa_arvore(child)
-print("\n\n")
-
-actions = {"root": None,
-           "transition": None,
-           "state": None}
-
-
-def processa_transicao(children, current_state):
-    # print("Children is ", children)
-    if children[1].type in ["STATE", "ENDPOINT"]:
-        # Caso em que a descrição da transicao é: S1 -> S2...
-        print('children[0] é:', children[0], children[0].type)
-        if children[0].type in ["ENDPOINT"]:
-            if current_state == '':
-                current_state = 'root'
-            # Estado inicial, init?, Estado final, Trigger, Guard, Behavior
-            transicao = [current_state, children[0].value,
-                         children[1].value, [], [], []]
-        else:
-            # Estado inicial, Estado final, Trigger, Guard, Behavior
-            transicao = [children[0].value, children[1].value, [], [], []]
-        children = children[1:]
-    else:
-        # Caso em que a descrição da transicao é: -> S2...
-        transicao = [current_state, children[0].value, [], [], []]
-        print('Est atual:', current_state, 'Est final:', children[0].value)
-    for node in children[1:]:
-        # Alterei a localização do trigger, guard e behavior para serem 
-        # encontrados de trás para frente, por causa da inclusão de um
-        # novo campo quando há transição init
-        if node.type == "TRIGGER":
-            transicao[-3].append(node.value)
-        elif node.type == "GUARD":
-            transicao[-2].append(node.value)
-        elif node.type == "BEHAVIOR":
-            transicao[-1].append(node.value)
-        else:
-            print("Tipo de nó desconhecido", type(node))
-
-    return transicao
-
-
-def processa_transicao_interna(children, current_state):
-    # print("Transição interna detectada.", children)
-    # Nome do estado, Trigger, Guard, Behavior
-    transicao_interna = [current_state, [], [], []]
-    for node in children:
-        if node.type == "TRIGGER":
-            transicao_interna[1].append(node.value)
-        elif node.type == "GUARD":
-            transicao_interna[2].append(node.value)
-        elif node.type == "BEHAVIOR":
-            transicao_interna[3].append(node.value)
-        else:
-            print("Tipo de nó desconhecido", type(node))
-
-    return transicao_interna
-
-
-def processa_estado(parent, children):
-    # Nome do estado, Filhos, Pai, Transições, Transições internas
-    estado = ["", [], parent, [], []]
-    for node in children:
-        if type(node) == lark.lexer.Token:
-            if node.type == "STATE":
-                estado[0] = node.value
-                # print("Detectamos um Token: ", node.value)
-            else:
-                print("Token desconhecido")
-
-        elif type(node) == lark.tree.Tree:
-            # print("Detectamos uma Tree: ", node.children[0].value)
-            if node.data == "state":
-                estado[1].append(processa_estado(estado[0], node.children))
-            elif node.data == "transition":
-                # já envia a lista de filhos
-                estado[3].append(processa_transicao(node.children, estado[0]))
-                '''#testar se tem estado inicial'''
-            elif node.data == "internal_transition":
-                estado[4].append(processa_transicao_interna(
-                    node.children, estado[0]))
-            else:
-                print("Árvore desconhecida: ", node.data)
-        else:
-            print("Tipo de nó desconhecido", type(node))
-
-    return estado
+    parse_transitions(child, "[*]", state_dict)
 
 # Imprime a árvore
-
-
 def pretty(tree, indentacao=""):
     # actions[tree.data](tree.children)
     print(indentacao + "Data: {}".format(tree.data))
@@ -267,174 +283,174 @@ def pretty(tree, indentacao=""):
 # Além do dicionário de estados, acredito que seja útil, embora não
 # necessário, um conjunto com todos os eventos encontrados
 #
-state_dict = {
-    "S1": [
-        # Transições iniciais - dicionário
-        {
-            "": ["S11", ""],
-            "foo == 1": ["S112", "foo = 0;"],
-            "c == 1": ["S122", "c = 0;"],
-        },
-        # Transições externas - dicionário
-        {
-            ("ev1", "foo == 0"): ("S2", "foo = 1;"),
-            ("ev2", "foo == 0"): ("S2", "foo = 1;"),
-            ("ev3", "foo == 0"): ("S2", "foo = 1;"),
-            ("EV1", ""): ("S21", ""),
-            ("ev4", "foo == 1"): ("S121", "foo = 0;"),
-        },
-        # Transições locais - dicionário
-        {},
-        # Transições internas - dicionário
-        {},
-        # Lista de subestados
-        ["S11", "S22"],
-    ],
-    "S11": [
-        # Transições iniciais - dicionário
-        {"": ["S111", ""]},
-        # Transições externas" - dicionário
-        {},
-        # Transições locais - dicionário
-        {},
-        # Transições internas - dicionário
-        {},
-        # Lista de subestados
-        ["S111", "S112"],
-    ],
-    "S111": [
-        # Transições iniciais - dicionário
-        {},
-        # Transições externas" - dicionário
-        {},
-        # Transições locais - dicionário
-        {
-            ("ev1", "foo == 2"): ("S1", "foo = 3;")
-        },
-        # Transições internas - dicionário
-        {},
-        # Lista de subestados
-        [],
-    ],
-    "S112": [
-        # Transições iniciais - dicionário
-        {},
-        # Transições externas" - dicionário
-        {
-            ("ev2", ""): ("S1", "foo = 1;")
-        },
-        # Transições locais - dicionário
-        {},
-        # Transições internas - dicionário
-        {},
-        # Lista de subestados
-        [],
-    ],
-    "S12": [
-        # Transições iniciais - dicionário
-        {"": ["S122", ""]},
-        # Transições externas" - dicionário
-        {},
-        # Transições locais - dicionário
-        {},
-        # Transições internas - dicionário
-        {},
-        # Lista de subestados
-        ["S121", "S122"],
-    ],
-    "S121": [
-        # Transições iniciais - dicionário
-        {},
-        # Transições externas" - dicionário
-        {},
-        # Transições locais - dicionário
-        {},
-        # Transições internas - dicionário
-        {},
-        # Lista de subestados
-        [],
-    ],
-    "S122": [
-        # Transições iniciais - dicionário
-        {},
-        # Transições externas" - dicionário
-        {
-            ("ev3", ""): ("S121", "foo = 10;")
-        },
-        # Transições locais - dicionário
-        {},
-        # Transições internas - dicionário
-        {},
-        # Lista de subestados
-        [],
-    ],
-    "S2": [
-        # Transições iniciais - dicionário
-        {"": ["S22", ""]},
-        # Transições externas" - dicionário
-        {
-            ("ev3", "foo == 0"): ("S1", "foo = 1;"),
-            ("ev5", ""): ("S21", ""),
-        },
-        # Transições locais - dicionário
-        {
-            ("ev1", ""): ("S21", ""),
-        },
-        # Transições internas - dicionário
-        {
-            ("ev11", "foo == 1"): "foo = 0;",
-            ("ev22", "foo == 1"): "foo = 0;",
-            ("ev33", "foo == 1"): "foo = 0;",
-            ("ev44", "foo == 1"): "foo = 0;",
-        },
-        # Lista de subestados
-        ["S21", "S22"],
-    ],
-    "S21": [
-        # Transições iniciais - dicionário
-        {},
-        # Transições externas" - dicionário
-        {
-            ("ev21", "foo == 0"): ("S22", "foo = 1;")
-        },
-        # Transições locais - dicionário
-        {},
-        # Transições internas - dicionário
-        {},
-        # Lista de subestados
-        [],
-    ],
-    "S22": [
-        # Transições iniciais - dicionário
-        {},
-        # Transições externas" - dicionário
-        {},
-        # Transições locais - dicionário
-        {},
-        # Transições internas - dicionário
-        {},
-        # Lista de subestados
-        [],
-    ],
-}
+# state_dict = {
+#     "S1": [
+#         # Transições iniciais - dicionário
+#         {
+#             "": ["S11", ""],
+#             "foo == 1": ["S112", "foo = 0;"],
+#             "c == 1": ["S122", "c = 0;"],
+#         },
+#         # Transições externas - dicionário
+#         {
+#             ("ev1", "foo == 0"): ("S2", "foo = 1;"),
+#             ("ev2", "foo == 0"): ("S2", "foo = 1;"),
+#             ("ev3", "foo == 0"): ("S2", "foo = 1;"),
+#             ("EV1", ""): ("S21", ""),
+#             ("ev4", "foo == 1"): ("S121", "foo = 0;"),
+#         },
+#         # Transições locais - dicionário
+#         {},
+#         # Transições internas - dicionário
+#         {},
+#         # Lista de subestados
+#         ["S11", "S22"],
+#     ],
+#     "S11": [
+#         # Transições iniciais - dicionário
+#         {"": ["S111", ""]},
+#         # Transições externas" - dicionário
+#         {},
+#         # Transições locais - dicionário
+#         {},
+#         # Transições internas - dicionário
+#         {},
+#         # Lista de subestados
+#         ["S111", "S112"],
+#     ],
+#     "S111": [
+#         # Transições iniciais - dicionário
+#         {},
+#         # Transições externas" - dicionário
+#         {},
+#         # Transições locais - dicionário
+#         {
+#             ("ev1", "foo == 2"): ("S1", "foo = 3;")
+#         },
+#         # Transições internas - dicionário
+#         {},
+#         # Lista de subestados
+#         [],
+#     ],
+#     "S112": [
+#         # Transições iniciais - dicionário
+#         {},
+#         # Transições externas" - dicionário
+#         {
+#             ("ev2", ""): ("S1", "foo = 1;")
+#         },
+#         # Transições locais - dicionário
+#         {},
+#         # Transições internas - dicionário
+#         {},
+#         # Lista de subestados
+#         [],
+#     ],
+#     "S12": [
+#         # Transições iniciais - dicionário
+#         {"": ["S122", ""]},
+#         # Transições externas" - dicionário
+#         {},
+#         # Transições locais - dicionário
+#         {},
+#         # Transições internas - dicionário
+#         {},
+#         # Lista de subestados
+#         ["S121", "S122"],
+#     ],
+#     "S121": [
+#         # Transições iniciais - dicionário
+#         {},
+#         # Transições externas" - dicionário
+#         {},
+#         # Transições locais - dicionário
+#         {},
+#         # Transições internas - dicionário
+#         {},
+#         # Lista de subestados
+#         [],
+#     ],
+#     "S122": [
+#         # Transições iniciais - dicionário
+#         {},
+#         # Transições externas" - dicionário
+#         {
+#             ("ev3", ""): ("S121", "foo = 10;")
+#         },
+#         # Transições locais - dicionário
+#         {},
+#         # Transições internas - dicionário
+#         {},
+#         # Lista de subestados
+#         [],
+#     ],
+#     "S2": [
+#         # Transições iniciais - dicionário
+#         {"": ["S22", ""]},
+#         # Transições externas" - dicionário
+#         {
+#             ("ev3", "foo == 0"): ("S1", "foo = 1;"),
+#             ("ev5", ""): ("S21", ""),
+#         },
+#         # Transições locais - dicionário
+#         {
+#             ("ev1", ""): ("S21", ""),
+#         },
+#         # Transições internas - dicionário
+#         {
+#             ("ev11", "foo == 1"): "foo = 0;",
+#             ("ev22", "foo == 1"): "foo = 0;",
+#             ("ev33", "foo == 1"): "foo = 0;",
+#             ("ev44", "foo == 1"): "foo = 0;",
+#         },
+#         # Lista de subestados
+#         ["S21", "S22"],
+#     ],
+#     "S21": [
+#         # Transições iniciais - dicionário
+#         {},
+#         # Transições externas" - dicionário
+#         {
+#             ("ev21", "foo == 0"): ("S22", "foo = 1;")
+#         },
+#         # Transições locais - dicionário
+#         {},
+#         # Transições internas - dicionário
+#         {},
+#         # Lista de subestados
+#         [],
+#     ],
+#     "S22": [
+#         # Transições iniciais - dicionário
+#         {},
+#         # Transições externas" - dicionário
+#         {},
+#         # Transições locais - dicionário
+#         {},
+#         # Transições internas - dicionário
+#         {},
+#         # Lista de subestados
+#         [],
+#     ],
+# }
 
-bottom_up_state_dict = {
-    "S1": "[*]",
-    "S11": "S1",
-    "S111": "S11",
-    "S112": "S11",
-    "S12": "S1",
-    "S121": "S12",
-    "S122": "S12",
-    "S2": "[*]",
-    "S21": "S2",
-    "S22": "S2",
-}
+# bottom_up_state_dict = {
+#     "S1": "[*]",
+#     "S11": "S1",
+#     "S111": "S11",
+#     "S112": "S11",
+#     "S12": "S1",
+#     "S121": "S12",
+#     "S122": "S12",
+#     "S2": "[*]",
+#     "S21": "S2",
+#     "S22": "S2",
+# }
 
-initial_state = [
-    {"": ["S11", ""]},
-    ["S1", "S2"]
-]
+# initial_state = [
+#     {"": ["S11", ""]},
+#     ["S1", "S2"]
+# ]
 
 # A lista abaixo não deveria ser um conjunto?
 # event_list = ['ev1', 'ev2', 'ev3', 'ev11', 'ev22',

@@ -643,10 +643,6 @@ push_init_path_str = """                push_state(fn_{}_cb);\t\t\t\\
 dispatch_init_str = "\t\tdispatch(INIT_EVENT);\t\t\t\\\n"
 
 pop_exit_path_str = """                dispatch(EXIT_EVENT);\t\t\t\\
-                pop_state({});\t\t\t\t\\
-"""
-
-pop_exit_path_str = """                dispatch(EXIT_EVENT);\t\t\t\\
                 pop_state();\t\t\t\t\\
 """
 
@@ -709,9 +705,9 @@ def transitions2_def():
                 yield dispatch_init_str
             yield tran_end_str
 
-    # Gerando transições locais     -       Falta ler do dicionário
+    # Gerando transições locais
     external_trans = False
-    for state, (_, _, d3, _, lst) in state_dict.items():
+    for state, (_, _, d3, _, children_lst) in state_dict.items():
         for dst_state, _ in d3.values():
             yield tran_local_begin_str.format(
                  tran_local_name_str.format(state, dst_state))
@@ -736,6 +732,9 @@ def transitions2_def():
             print(path1)
             print(path2)
             # print("**********")
+
+            if children_lst:
+                yield "\t\texit_inner_states();\t\t\t\\\n"
 
             for state in path1[::-1]:
                 yield pop_exit_path_str

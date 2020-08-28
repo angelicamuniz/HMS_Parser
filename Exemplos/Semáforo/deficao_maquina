@@ -1,0 +1,79 @@
+[*] -> fn :
+
+state fn {
+	[*] -> fn_sem1 :
+	
+	state fn_sem1 {
+		[*] -> fn_sem1_verde1 :
+		
+		state fn_sem1_verde1 {
+		}
+		
+		state fn_sem1_verde2 {
+		}
+		
+		state fn_sem1_verde3 {
+		}
+		
+		state fn_sem1_verde_amb1 {
+		}
+		
+		state fn_sem1_amarelo_amb2 {
+		}
+		
+		state fn_sem1_amarelo_carro2 {
+		}
+		
+		state fn_sem1_amarelo_ped {
+		}
+	}
+	
+	state fn_sem2 {
+		[*] -> fn_sem2_verde1 :
+		
+		
+		state fn_sem2_verde1 {
+		}
+		
+		state fn_sem2_verde2 {
+		}
+		
+		state fn_sem2_verde_amb2 {
+		}
+		
+		state fn_sem2_amarelo_amb1 {
+		}
+		
+		state fn_sem2_amarelo {
+		}
+		
+	}
+	
+	state fn_sem3 {
+		[*] -> fn_sem3_verde :
+		
+		
+		state fn_sem3_verde {
+		}
+		
+		state fn_sem3_pisca {
+			
+			state fn_sem3_pisca_on {
+			}
+			
+			state fn_sem3_pisca_off {
+			}
+		}
+	}
+}
+
+state modonot {
+	[*] -> modonot_amarelos_on :
+	
+	state modonot_amarelos_on {
+	}
+	
+	state modonot_amarelos_off {
+	}
+	
+}

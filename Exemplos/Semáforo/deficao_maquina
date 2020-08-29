@@ -19,6 +19,7 @@ state fn {
 		}
 		
 		state fn_sem1_amarelo_amb2 {
+			-> fn_sem2_verde_amb2 : EVENT_TIMEOUT1
 		}
 		
 		state fn_sem1_amarelo_carro2 {
@@ -57,6 +58,7 @@ state fn {
 		}
 		
 		state fn_sem3_pisca {
+			[*] -> fn_sem3_pisca_on :
 			
 			state fn_sem3_pisca_on {
 			}
@@ -71,9 +73,10 @@ state modonot {
 	[*] -> modonot_amarelos_on :
 	
 	state modonot_amarelos_on {
+		-> modonot_amarelos_off : EVENT_TIMEOUT1
 	}
 	
 	state modonot_amarelos_off {
+		-> modonot_amarelos_on : EVENT_TIMEOUT1
 	}
-	
 }

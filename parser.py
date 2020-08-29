@@ -26,8 +26,13 @@ ENDPOINT: "[*]"
 %ignore WS"""
 parser = lark.Lark(grammar, start="root")
 
-
-text = """[*] -> S11 :
+if len(sys.argv) > 1:
+    print("Entrei!", sys.argv[1])
+    with open(sys.argv[1], "rt") as f:
+        text = f.read()
+        print(len(text))
+else:
+    text = """[*] -> S11 :
 
     state S1 {
         [*] -> S11 :
@@ -56,7 +61,7 @@ text = """[*] -> S11 :
 
         -> S2 : ev1, ev2, ev3 ["foo == 0"] / "foo = 1"
         -> S21 : EV1
-        -> S121 : ev4 ["foo == 1"] / "foo = 0"
+        -> S121 : ev4 ["foo == 1"] / "foo = 0;"
     }
 
     state S2 {
@@ -67,12 +72,12 @@ text = """[*] -> S11 :
         state S22 {
 
         }
-         : ev11, ev22, ev33, ev44 ["foo == 1"] / "foo = 0"
-        -> S1 : ev3 ["foo == 0"] / "foo = 1"
+         : ev11, ev22, ev33, ev44 ["foo == 1"] / "foo = 0;"
+        -> S1 : ev3 ["foo == 0"] / "foo = 1;"
         -> S21 : ev5
         -> local S21 : ev6
     }
-    S21 -> S22 : ev21 ["foo == 0"] / "foo = 1"
+    S21 -> S22 : ev21 ["foo == 0"] / "foo = 1;"
 """
 tree = parser.parse(text)
 # print(tree.pretty())
@@ -488,7 +493,7 @@ event_enum_end_str = """};
 
 """
 
-cb_declaration_str = "cb_status fn_{}_cb(event_t ev);\n"
+cb_declaration_str = "cb_status {}_cb(event_t ev);\n"
 cb_header_str = """
 cb_status init_cb(event_t ev)
 {
@@ -498,7 +503,7 @@ cb_status init_cb(event_t ev)
 
 """
 
-cb_definition_begin_str = """cb_status fn_{}_cb(event_t ev)
+cb_definition_begin_str = """cb_status {}_cb(event_t ev)
 {{
     switch(ev) {{
     case ENTRY_EVENT:
@@ -562,10 +567,11 @@ def events_def(event_list):
     """Generator function to generate the code lines for defining the
 events enum"""
     yield event_header_str
-    yield event_enum_begin_str.format(event_list[0])
-    for event in event_list[1:]:
-        yield event_enum_body_str.format(event)
-    yield event_enum_end_str
+    if event_list:
+        yield event_enum_begin_str.format(event_list[0])
+        for event in event_list[1:]:
+            yield event_enum_body_str.format(event)
+        yield event_enum_end_str
 
 
 def cb_declarations_def(state_list):
@@ -653,7 +659,7 @@ tran_def_begin_str = """
         }} while (0)
 '''
 
-push_init_path_str = """                push_state(fn_{}_cb);\t\t\t\\
+push_init_path_str = """                push_state({}_cb);\t\t\t\\
                 dispatch(ENTRY_EVENT);\t\t\t\\
 """
 dispatch_init_str = "\t\tdispatch(INIT_EVENT);\t\t\t\\\n"
@@ -670,9 +676,9 @@ tran_ext_exit_entry_str = """                dispatch(EXIT_EVENT);\t\t\t\\
                 dispatch(ENTRY_EVENT);\t\t\t\\
 """
 
-tran_init_name_str = "fn_{}_init_{}_tran()"
-tran_local_name_str = "fn_{}_local_{}_tran()"
-tran_ext_name_str = "fn_{}_{}_tran()"
+tran_init_name_str = "{}_init_{}_tran()"
+tran_local_name_str = "{}_local_{}_tran()"
+tran_ext_name_str = "{}_{}_tran()"
 
 tran_end_str = """        } while (0)
 """

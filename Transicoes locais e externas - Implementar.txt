@@ -41,5 +41,3 @@ Para path2: 				(push_state | ENTRY | ... até o primeiro de path2) para cada el
 Se o estado destino for superestado: 	(INIT)
 
 --
-
-Implementar tudo como uma função que recebe uma variável bool que determina se é local ou externa (linha 18) [ if (!path1 or !path2) and bool: ]

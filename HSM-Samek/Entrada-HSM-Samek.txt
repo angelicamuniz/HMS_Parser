@@ -1,0 +1,43 @@
+[*] -> s2 : / "action0()"
+
+state s {
+	[*] -> s11 :
+	
+	s -> local s11 : E
+	
+	state s1{
+		[*] -> s11 :
+		
+		-> s : D ["guard1()"] / "action1()"
+		-> s11 : B
+		-> s1 : A
+		-> s211 : F
+		-> s2 : C
+		
+		state s11{
+			-> s1 : D ["guard1()"] / "action0()"
+			-> s : H
+			-> s211 : G
+		}
+	}
+	
+	state s2{
+		[*] -> s211 :
+		
+		-> s1 : C
+		-> s11 : F
+		
+		state s21{
+			[*] -> s211 :
+			
+			-> s11 : G
+			-> s211 : B
+			-> s21 : A
+			
+			state s211{
+				-> s : H
+				-> s21 : D
+			}
+		}
+	}
+}

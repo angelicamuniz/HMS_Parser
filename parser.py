@@ -474,6 +474,8 @@ def pretty(tree, indentacao=""):
 # (contendo {})
 #
 
+guard_list      = []
+behavior_list   = []
 
 event_list = list(set(ev for d1, d2, d3, d4, lst
                       in state_dict.values()
@@ -522,7 +524,7 @@ cb_definition_body3_str = """
 
 cb_definition_body4_str = """    case {}:
         if ({}) {{
-            {}
+            {};
             {};
             return EVENT_HANDLED;
         }}
@@ -531,14 +533,14 @@ cb_definition_body4_str = """    case {}:
 
 cb_definition_body5_str = """    case {}:
         if ({}) {{
-            {}
+            {};
             return EVENT_HANDLED;
         }}
         break;
 """
 
 cb_definition_body6_str = """    case {}:
-        {}
+        {};
         {};
         return EVENT_HANDLED;
     break;
@@ -549,20 +551,51 @@ cb_definition_end_str = """    }
 }
 
 """
-cb_init_body1_str = """        {}
+cb_init_body1_str = """        {};
         {};
         return EVENT_HANDLED;
 """
-cb_init_body2_str = """            {}
+cb_init_body2_str = """            {};
             {};
             return EVENT_HANDLED;
 """
 
+cb_guard_functions_definitions_str = """
+int {}
+{{
+    /* Desenvolva aqui sua funcao.*/
+    return 1;
+}}
+
+"""
+
+cb_action_functions_definitions_str = """
+int {}
+{{
+    /* Desenvolva aqui sua funcao.*/
+    return 1;
+}}
+
+"""
 
 #
 # Definimos agora os geradores que serão
 # usados para criar o código linha por linha
 #
+
+def cb_guard_definitions_def(guard_list):
+    for gc in guard_list:
+        print ('GC: ',gc)
+        print ('Type GC: ', type(gc))
+        yield cb_guard_functions_definitions_str.format(gc)
+
+
+def cb_actions_definitions_def(behavior_list):
+    for action in behavior_list:
+        yield cb_action_functions_definitions_str.format(action)
+
+
+
 def events_def(event_list):
     """Generator function to generate the code lines for defining the
 events enum"""
@@ -591,6 +624,8 @@ state callback functions"""
             yield cb_definition_body1_str.format(state)
             if len(d1) == 1:
                 final_state, action = d1[""]
+                if action:
+                    behavior_list.append(action)
                 yield cb_init_body1_str.format(action,
                                                tran_init_name_str.format(state, final_state))
             else:
@@ -599,6 +634,13 @@ state callback functions"""
                                                     tran_init_name_str.format(state, final_state)),
                            "        }"])
                            for gc, (final_state, action) in d1.items() if gc]
+                for gc, (final_state, action) in d1.items():
+                    if gc:
+                        if gc not in guard_list:
+                            guard_list.append(gc)
+                    if action:
+                        if action not in behavior_list:
+                            behavior_list.append(action)
                 ifs_str = " else ".join(ifs_lst)
                 final_state, action = d1[""]
                 ifs_str += " else {{\n{}\n        }}\n".format(cb_init_body2_str.format(action, tran_init_name_str.format(state, final_state)))
@@ -607,23 +649,44 @@ state callback functions"""
         # Transições externas
         for (ev, gc), (final_state, action) in d2.items():
             if gc:
+                if gc not in guard_list:
+                    guard_list.append(gc)
+                if action:
+                    if action not in behavior_list:
+                        behavior_list.append(action)
                 yield cb_definition_body4_str.format(ev, gc, action,
                                                  tran_ext_name_str.format(state, final_state))
             else:
+                if action:
+                    behavior_list.append(action)
                 yield cb_definition_body6_str.format(ev, action,
                                                  tran_ext_name_str.format(state, final_state))
 
         # Transições locais
         for (ev, gc), (final_state, action) in d3.items():
             if gc:
+                if gc not in guard_list:
+                    guard_list.append(gc)
+                if action:
+                    if action not in behavior_list:
+                        behavior_list.append(action)
                 yield cb_definition_body4_str.format(ev, gc, action,
                                                  tran_local_name_str.format(state, final_state))
             else:
+                if action:
+                    if action not in behavior_list:
+                        behavior_list.append(action)
                 yield cb_definition_body6_str.format(ev, action,
                                                  tran_local_name_str.format(state, final_state))
 
         # Transições internas
         for (ev, gc), action in d4.items():
+            if gc:
+                if gc not in guard_list:
+                    guard_list.append(gc)
+            if action:
+                if action not in behavior_list:
+                    behavior_list.append(action)
             yield cb_definition_body5_str.format(ev, gc, action)
 
         yield cb_definition_end_str
@@ -639,6 +702,7 @@ tran_header_str = '''#ifndef TRANSITIONS_H
 
 #include "event.h"
 #include "sm.h"
+#include "guard_and_actions.h"
 
 '''
 
@@ -846,3 +910,46 @@ with open('transitions.h', 'w') as f:
     cb_decl_seq = cb_declarations_def(state_dict.keys())
     transitions2_seq = transitions2_def()
     f.writelines(chain(transitions1_seq, cb_decl_seq, transitions2_seq))
+
+with open('guard_and_actions.h', 'w') as f:
+    functions_gc = cb_guard_definitions_def(guard_list)
+    functions_actions = cb_actions_definitions_def(behavior_list)
+    f.writelines(chain(functions_gc, functions_actions))
+
+
+print('guard list: ', guard_list)
+print('behavior list: ',behavior_list)
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+

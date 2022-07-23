@@ -531,11 +531,26 @@ cb_definition_body4_str = """    case {}:
         break;
 """
 
+cb_definition_body42_str = """    case {}:
+        if ({}) {{
+            {};
+            return EVENT_HANDLED;
+        }}
+        break;
+"""
+
 cb_definition_body5_str = """    case {}:
         if ({}) {{
             {};
             return EVENT_HANDLED;
         }}
+        break;
+"""
+
+
+cb_definition_body52_str = """    case {}:
+        {};
+        return EVENT_HANDLED;
         break;
 """
 
@@ -546,15 +561,27 @@ cb_definition_body6_str = """    case {}:
     break;
 """
 
+cb_definition_body62_str = """    case {}:
+        {};
+        return EVENT_HANDLED;
+    break;
+"""
+
 cb_definition_end_str = """    }
     return EVENT_NOT_HANDLED;
 }
 
 """
+
 cb_init_body1_str = """        {};
         {};
         return EVENT_HANDLED;
 """
+
+cb_init_body12_str = """        {};
+        return EVENT_HANDLED;
+"""
+
 cb_init_body2_str = """            {};
             {};
             return EVENT_HANDLED;
@@ -626,9 +653,12 @@ state callback functions"""
                 final_state, action = d1[""]
                 if action:
                     behavior_list.append(action)
-                yield cb_init_body1_str.format(action,
+                    yield cb_init_body1_str.format(action,
                                                tran_init_name_str.format(state, final_state))
+                else:
+                    yield cb_init_body12_str.format(tran_init_name_str.format(state, final_state))
             else:
+                #Aqui não testa se tem ação, então, caso não tenha, aparecerá um ; em seu lugar.
                 ifs_lst = ["".join(["if ({}) {{\n".format(gc),
                            cb_init_body2_str.format(action,
                                                     tran_init_name_str.format(state, final_state)),
@@ -654,12 +684,18 @@ state callback functions"""
                 if action:
                     if action not in behavior_list:
                         behavior_list.append(action)
-                yield cb_definition_body4_str.format(ev, gc, action,
+                    yield cb_definition_body4_str.format(ev, gc, action,
+                                                 tran_ext_name_str.format(state, final_state))
+                else:
+                    yield cb_definition_body42_str.format(ev, gc,
                                                  tran_ext_name_str.format(state, final_state))
             else:
                 if action:
                     behavior_list.append(action)
-                yield cb_definition_body6_str.format(ev, action,
+                    yield cb_definition_body6_str.format(ev, action,
+                                                 tran_ext_name_str.format(state, final_state))
+                else:
+                    yield cb_definition_body62_str.format(ev,
                                                  tran_ext_name_str.format(state, final_state))
 
         # Transições locais
@@ -670,24 +706,32 @@ state callback functions"""
                 if action:
                     if action not in behavior_list:
                         behavior_list.append(action)
-                yield cb_definition_body4_str.format(ev, gc, action,
+                    yield cb_definition_body4_str.format(ev, gc, action,
+                                                 tran_local_name_str.format(state, final_state))
+                else:
+                    yield cb_definition_body42_str.format(ev, gc,
                                                  tran_local_name_str.format(state, final_state))
             else:
                 if action:
                     if action not in behavior_list:
                         behavior_list.append(action)
-                yield cb_definition_body6_str.format(ev, action,
+                    yield cb_definition_body6_str.format(ev, action,
+                                                 tran_local_name_str.format(state, final_state))
+                else:
+                    yield cb_definition_body62_str.format(ev,
                                                  tran_local_name_str.format(state, final_state))
 
         # Transições internas
         for (ev, gc), action in d4.items():
-            if gc:
-                if gc not in guard_list:
-                    guard_list.append(gc)
             if action:
                 if action not in behavior_list:
                     behavior_list.append(action)
-            yield cb_definition_body5_str.format(ev, gc, action)
+            if gc:
+                if gc not in guard_list:
+                    guard_list.append(gc)
+                yield cb_definition_body5_str.format(ev, gc, action)
+            else:
+                yield cb_definition_body52_str.format(ev, action)
 
         yield cb_definition_end_str
 

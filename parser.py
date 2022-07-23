@@ -942,6 +942,110 @@ def transitions2_def():
             yield tran_end_str
 
 
+smh_str = """#ifndef SM_H
+#define SM_H
+
+#include <stdint.h>
+#include "event.h"
+
+typedef uint8_t cb_status;
+enum {
+        EVENT_HANDLED = 0,
+        EVENT_NOT_HANDLED
+};
+
+enum {
+        EMPTY_EVENT = EVENT0,
+        ENTRY_EVENT = EVENT1,
+        EXIT_EVENT  = EVENT2,
+        INIT_EVENT  = EVENT3,
+        USER_EVENT  = EVENT4
+};
+
+typedef cb_status (*cb_t)(event_t ev);
+typedef cb_t state_t;
+
+#define MAX_ACTIVE_STATES 10
+extern state_t *_p_state;
+extern uint8_t _state_stack_len;
+
+void init_machine(cb_t init_fun);
+
+#define dispatch(ev) (*_p_state)(ev)
+#define push_state(st) *++_p_state = (st)
+#define pop_state() _p_state--
+#define replace_state(st) *_p_state = (st)
+#define exit_inner_states()                     \\
+        do {                                    \\
+                _p_state += _state_stack_len;   \\
+                while (_state_stack_len) {      \\
+                        dispatch(EXIT_EVENT);   \\
+                        pop_state();            \\
+                        _state_stack_len--;     \\
+                }                               \\
+        } while(0)
+
+#define dispatch_event(ev) do {                                 \\
+        _state_stack_len = 0;                                   \\
+        while(*_p_state) {                                      \\
+                if (dispatch(ev) == EVENT_HANDLED) {            \\
+                        _p_state += _state_stack_len;           \\
+                        break;                                  \\
+                }                                               \\
+                _state_stack_len++;                             \\
+                pop_state();                                    \\
+        }                                                       \\
+        if (!*_p_state) {                                       \\
+                _p_state += _state_stack_len;                   \\
+                _state_stack_len = 0;                           \\
+        }                                                       \\
+        } while (0)
+
+#endif /* SM_H */
+"""
+
+eventh_str="""#ifndef EVENTS_H
+#define EVENTS_H
+
+#include <stdint.h>
+
+typedef uint16_t event_t;
+
+event_t wait_for_events(void);
+event_t test_for_event(event_t);
+
+extern volatile event_t _events;
+#define set_event(ev)                           \\
+        do {                                    \\
+                enter_critical_region();        \\
+                _events |= (1 << (ev));         \\
+                leave_critical_region();        \\
+        } while (0)
+
+#define MAX_EVENTS 16
+
+enum {
+    EVENT0 = 0,
+    EVENT1,
+    EVENT2,
+    EVENT3,
+    EVENT4,
+    EVENT5,
+    EVENT6,
+    EVENT7,
+    EVENT8,
+    EVENT9,
+    EVENT10,
+    EVENT11,
+    EVENT12,
+    EVENT13,
+    EVENT14,
+    EVENT15
+};
+
+#endif /* EVENTS_H */
+"""
+
 with open('main_hsm.c', 'w') as f:
     events_seq = events_def(event_list)
     cb_decl_seq = cb_declarations_def(state_dict.keys())
@@ -960,6 +1064,11 @@ with open('guard_and_actions.h', 'w') as f:
     functions_actions = cb_actions_definitions_def(behavior_list)
     f.writelines(chain(functions_gc, functions_actions))
 
+with open('sm.h', 'w') as f:
+    f.writelines(smh_str)
+    
+with open('event.h',  'w') as f:
+    f.writelines(eventh_str)
 
 print('guard list: ', guard_list)
 print('behavior list: ',behavior_list)

@@ -1,0 +1,5 @@
+main_hsm.txt
+main_hsm.c
+transitions.h
+.mypy_cache
+settings.json

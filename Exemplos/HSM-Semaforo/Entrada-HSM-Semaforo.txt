@@ -29,15 +29,15 @@ state fn {
 		}
 		
 		state fn_sem1_amarelo_amb2 {
-			-> fn_sem2_verde_amb2 : EVENT_TIMEOUT1 / "acende_verde2()"
+			-> fn_sem2_verde_amb2 : EVENT_TIMEOUT3 / "acende_verde2()"
 		}
 		
 		state fn_sem1_amarelo_carro2{
-			-> fn_sem2 : EVENT_TIMEOUT1 / "acende_verde2()"
+			-> fn_sem2 : EVENT_TIMEOUT3 / "acende_verde2()"
 		}
 		
 		state fn_sem1_amarelo_ped {
-			-> fn_sem3 : EVENT_TIMEOUT1 / "acende_verde3()"
+			-> fn_sem3 : EVENT_TIMEOUT3 / "acende_verde3()"
 		}
 	}
 	
@@ -51,7 +51,7 @@ state fn {
 		state fn_sem2_verde2 {
 			-> fn_sem2_verde_amb2 : EVENT_AMB2
 			-> fn_sem2_amarelo_amb1 : EVENT_AMB1 / "acende_amarelo2()"
-			-> fn_sem2_amarelo : EVENT_TIMEOUT1 / "acende_amarelo2()"
+			-> fn_sem2_amarelo : EVENT_TIMEOUT4 / "acende_amarelo2()"
 		}
 		
 		state fn_sem2_verde_amb2 {
@@ -59,11 +59,11 @@ state fn {
 		}
 		
 		state fn_sem2_amarelo {
-			-> fn_sem1 : EVENT_TIMEOUT1 / "acende_verde1()"
+			-> fn_sem1 : EVENT_TIMEOUT3 / "acende_verde1()"
 		}
 		
 		state fn_sem2_amarelo_amb1 {
-			-> fn_sem1_verde_amb1 : EVENT_TIMEOUT1 / "acende_verde1()"
+			-> fn_sem1_verde_amb1 : EVENT_TIMEOUT3 / "acende_verde1()"
 		}
 		
 	}
@@ -72,22 +72,22 @@ state fn {
 		[*] -> fn_sem3_verde : / "acende_verde3()"
 		
 		state fn_sem3_verde {
-			-> fn_sem3_pisca : EVENT_TIMEOUT1	
+			-> fn_sem3_pisca : EVENT_TIMEOUT5
 		}
 		
 		state fn_sem3_pisca {
 			[*] -> fn_sem3_pisca_on :
-			-> fn_sem1_verde_amb1 : EVENT_TIMEOUT1 ["amb1_presente"]
-			-> fn_sem2_verde_amb2 : EVENT_TIMEOUT1 ["amb2_presente"]
-			-> fn_sem2 : EVENT_TIMEOUT1 ["carro2_presente"]
-			-> fn_sem1 : EVENT_TIMEOUT1
+			-> fn_sem1_verde_amb1 : EVENT_TIMEOUT7 ["amb1_presente"]
+			-> fn_sem2_verde_amb2 : EVENT_TIMEOUT7 ["amb2_presente"]
+			-> fn_sem2 : EVENT_TIMEOUT7 ["carro2_presente"]
+			-> fn_sem1 : EVENT_TIMEOUT7
 			
 			state fn_sem3_pisca_on {
-				-> fn_sem3_pisca_off : EVENT_TIMEOUT2 / "apaga_verde3()"
+				-> fn_sem3_pisca_off : EVENT_TIMEOUT6 / "apaga_verde3()"
 			}
 			
 			state fn_sem3_pisca_off {
-				-> fn_sem3_pisca_on : EVENT_TIMEOUT2 / "acende_verde3()"
+				-> fn_sem3_pisca_on : EVENT_TIMEOUT6 / "acende_verde3()"
 			}
 		}
 	}
@@ -98,11 +98,11 @@ state modonot {
 	-> fn : EVENT_TROCA_MODO
 	
 	state modonot_amarelos_on {
-		-> modonot_amarelos_off : EVENT_TIMEOUT1 / "apaga_amarelos_not()"
+		-> modonot_amarelos_off : EVENT_TIMEOUT6 / "apaga_amarelos_not()"
 	}
 	
 	state modonot_amarelos_off {
-		-> modonot_amarelos_on : EVENT_TIMEOUT1 / "acende_amarelos_not()"
+		-> modonot_amarelos_on : EVENT_TIMEOUT6 / "acende_amarelos_not()"
 	}
 	
 }

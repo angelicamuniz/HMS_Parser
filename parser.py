@@ -528,7 +528,6 @@ cb_definition_body4_str = """    case {}:
             {};
             return EVENT_HANDLED;
         }}
-        break;
 """
 
 cb_definition_body42_str = """    case {}:
@@ -536,7 +535,6 @@ cb_definition_body42_str = """    case {}:
             {};
             return EVENT_HANDLED;
         }}
-        break;
 """
 
 cb_definition_body5_str = """    case {}:
@@ -544,27 +542,23 @@ cb_definition_body5_str = """    case {}:
             {};
             return EVENT_HANDLED;
         }}
-        break;
 """
 
 
 cb_definition_body52_str = """    case {}:
         {};
         return EVENT_HANDLED;
-        break;
 """
 
 cb_definition_body6_str = """    case {}:
         {};
         {};
         return EVENT_HANDLED;
-    break;
 """
 
 cb_definition_body62_str = """    case {}:
         {};
         return EVENT_HANDLED;
-    break;
 """
 
 cb_definition_end_str = """    }

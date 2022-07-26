@@ -998,6 +998,21 @@ void init_machine(cb_t init_fun);
 #endif /* SM_H */
 """
 
+smc_str = """#include "sm.h"
+
+state_t _active_states[MAX_ACTIVE_STATES];
+
+state_t *_p_state = _active_states;
+
+uint8_t _state_stack_len;
+
+void init_machine(cb_t init_fun)
+{
+        *_active_states = 0;
+        init_fun(INIT_EVENT);
+}
+"""
+
 eventh_str="""#ifndef EVENTS_H
 #define EVENTS_H
 
@@ -1040,6 +1055,97 @@ enum {
 #endif /* EVENTS_H */
 """
 
+eventc_str="""#include "event.h"
+#include "bsp.h"
+
+
+volatile event_t _events;
+
+event_t test_for_event(event_t ev)
+{
+	return _events & (1 << ev);
+}
+
+
+event_t wait_for_events(void)
+{
+	uint8_t ev;
+	event_t copy;
+
+	while(!_events)
+		;
+
+	for(ev=0, copy=_events; ev<MAX_EVENTS && copy; ev++, copy>>=1)
+		if (copy & 0x1) {
+			enter_critical_region();
+			_events &= ~(1 << ev);
+			leave_critical_region();
+			break;
+		}
+
+	return ev;
+}
+"""
+
+bsph_str="""#ifndef BSP_H
+#define BSP_H
+
+#ifdef __AVR__
+#include "bsp_avr.h"
+#elif defined __linux__
+#include "bsp_linux.h"
+#else
+#error "Architecture not know!"
+#endif
+
+#endif /* BSP_H */
+"""
+
+bsp_avrh_str="""#ifndef BSP_AVR_H
+#define BSP_AVR_H
+
+#include <avr/interrupt.h>
+
+#define enter_critical_region() cli()
+#define leave_critical_region() sei()
+
+#endif /* BSP_AVR_H */
+"""
+
+bsp_linuxh_str="""#ifndef BSP_LINUX_H
+#define BSP_LINUX_H
+
+
+void bsp_init(void);
+void enter_critical_region(void);
+void leave_critical_region(void);
+
+#endif /* BSP_LINUX_H */
+"""
+
+bsp_linuxc_str="""#include <pthread.h>
+#include "bsp_linux.h"
+
+pthread_mutex_t _event_mutex;
+
+void bsp_init(void)
+{
+        pthread_mutex_init(&_event_mutex, 0);
+}
+
+
+void enter_critical_region()
+{
+        pthread_mutex_lock(&_event_mutex);
+}
+
+
+void leave_critical_region()
+{
+        pthread_mutex_unlock(&_event_mutex);
+}
+"""
+
 with open('main_hsm.c', 'w') as f:
     events_seq = events_def(event_list)
     cb_decl_seq = cb_declarations_def(state_dict.keys())
@@ -1061,8 +1167,26 @@ with open('guard_and_actions.h', 'w') as f:
 with open('sm.h', 'w') as f:
     f.writelines(smh_str)
     
+with open('sm.c', 'w') as f:
+    f.writelines(smc_str)
+    
 with open('event.h',  'w') as f:
     f.writelines(eventh_str)
+
+with open('event.c',  'w') as f:
+    f.writelines(eventc_str)
+
+with open('bsp.h',  'w') as f:
+    f.writelines(bsph_str)
+
+with open('bsp_avr.h',  'w') as f:
+    f.writelines(bsp_avrh_str)
+
+with open('bsp_linux.h',  'w') as f:
+    f.writelines(bsp_linuxh_str)
+
+with open('bsp_linux.c',  'w') as f:
+    f.writelines(bsp_linuxc_str)
 
 print('guard list: ', guard_list)
 print('behavior list: ',behavior_list)

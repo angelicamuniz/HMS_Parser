@@ -484,7 +484,12 @@ event_list = list(set(ev for d1, d2, d3, d4, lst
 
 event_header_str = """#include "event.h"
 #include "sm.h"
-
+#include "transitions.h"
+#include "guard_and_actions.h"
+#include "bsp.h"
+#include <stdio.h>
+#include <pthread.h>
+#include <stdint.h>
 """
 event_enum_begin_str = """enum {{
     {} = USER_EVENT,
@@ -605,14 +610,14 @@ int {}
 #
 
 def cb_guard_definitions_def(guard_list):
-    for gc in guard_list:
+    for gc in set(guard_list):
         print ('GC: ',gc)
         print ('Type GC: ', type(gc))
         yield cb_guard_functions_definitions_str.format(gc)
 
 
 def cb_actions_definitions_def(behavior_list):
-    for action in behavior_list:
+    for action in set(behavior_list):
         yield cb_action_functions_definitions_str.format(action)
 
 
@@ -685,7 +690,8 @@ state callback functions"""
                                                  tran_ext_name_str.format(state, final_state))
             else:
                 if action:
-                    behavior_list.append(action)
+                    if action not in behavior_list:
+                        behavior_list.append(action)
                     yield cb_definition_body6_str.format(ev, action,
                                                  tran_ext_name_str.format(state, final_state))
                 else:
@@ -744,8 +750,12 @@ tran_header_str = '''#ifndef TRANSITIONS_H
 
 '''
 
+tran_endfile_str="""
+#endif
+"""
+
 tran_top_init_begin_str = """
-#define Top_init_tran() do {{\t\t\t\t\\
+#define top_init_tran() do {\t\t\t\t\\
 """
 
 tran_def_begin_str = """
@@ -1087,6 +1097,8 @@ event_t wait_for_events(void)
 }
 """
 
+intmain_str=""""""
+
 bsph_str="""#ifndef BSP_H
 #define BSP_H
 
@@ -1114,7 +1126,6 @@ bsp_avrh_str="""#ifndef BSP_AVR_H
 
 bsp_linuxh_str="""#ifndef BSP_LINUX_H
 #define BSP_LINUX_H
-
 
 void bsp_init(void);
 void enter_critical_region(void);
@@ -1150,14 +1161,14 @@ with open('main_hsm.c', 'w') as f:
     events_seq = events_def(event_list)
     cb_decl_seq = cb_declarations_def(state_dict.keys())
     cb_def_seq = cb_definitions_def(state_dict)
-    f.writelines(chain(events_seq, cb_decl_seq, cb_def_seq))
+    f.writelines(chain(events_seq, cb_decl_seq, cb_def_seq, intmain_str))
 
 
 with open('transitions.h', 'w') as f:
     transitions1_seq = transitions1_def()
     cb_decl_seq = cb_declarations_def(state_dict.keys())
     transitions2_seq = transitions2_def()
-    f.writelines(chain(transitions1_seq, cb_decl_seq, transitions2_seq))
+    f.writelines(chain(transitions1_seq, cb_decl_seq, transitions2_seq,  tran_endfile_str))
 
 with open('guard_and_actions.h', 'w') as f:
     functions_gc = cb_guard_definitions_def(guard_list)

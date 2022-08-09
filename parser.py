@@ -611,8 +611,6 @@ int {}
 
 def cb_guard_definitions_def(guard_list):
     for gc in set(guard_list):
-        print ('GC: ',gc)
-        print ('Type GC: ', type(gc))
         yield cb_guard_functions_definitions_str.format(gc)
 
 
@@ -863,8 +861,8 @@ def transitions2_def():
             path1a = [el1 for el1, el2 in zip_longest(path1, path2) if el1 and el1 != el2]
             path2 = [el2 for el1, el2 in zip_longest(path1, path2) if el2 and el1 != el2]
             path1 = path1a
-            print(path1)
-            print(path2)
+            # print(path1)
+            # print(path2)
             # print("**********")
 
             if children_lst:
@@ -900,6 +898,7 @@ def transitions2_def():
     external_trans = True
     for state, (_, d2, _, _, children_lst) in state_dict.items():
         for dst_state, _ in d2.values():
+            print ("Trans Externa: {} -: {}".format(state,  dst_state))
             yield tran_def_begin_str.format(
                 tran_ext_name_str.format(state, dst_state))
 
@@ -924,8 +923,8 @@ def transitions2_def():
             path1a = [el1 for el1, el2 in zip_longest(path1, path2) if el1 and el1 != el2]
             path2 = [el2 for el1, el2 in zip_longest(path1, path2) if el2 and el1 != el2]
             path1 = path1a
-            print(path1)
-            print(path2)
+            # print(path1)
+            # print(path2)
             # print("**********")
 
             for state in path1[::-1]:

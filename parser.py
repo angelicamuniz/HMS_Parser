@@ -908,7 +908,9 @@ def transitions2_def():
     # Gerando transições externas
     external_trans = True
     for state, (_, d2, _, _, children_lst) in state_dict.items():
+        print("\n\n=========================\nd2 = {}\n".format(d2))
         for lst in d2.values():
+            print("lst = {} \n=========================\n\n".format(lst))
             for dst_state, _, _ in lst:
                 yield tran_def_begin_str.format(
                     tran_ext_name_str.format(state, dst_state))
@@ -929,8 +931,8 @@ def transitions2_def():
                 path1 = path1[::-1]
 
                 print("-----")
-                # print(path1)
-                # print(path2)
+                print("Estado inicial: ", state)
+                print("Estado   final: ", dst_state)
                 path1a = [el1 for el1, el2 in zip_longest(path1, path2) if el1 and el1 != el2]
                 path2 = [el2 for el1, el2 in zip_longest(path1, path2) if el2 and el1 != el2]
                 path1 = path1a
@@ -938,12 +940,12 @@ def transitions2_def():
                 print(path2)
                 # print("**********")
 
-                for state in path1[::-1]:
+                for state_in_path in path1[::-1]:
                     yield pop_exit_path_str
                 if (not path1 or not path2) and external_trans:
                     yield tran_ext_exit_entry_str
-                for state in path2:
-                    yield push_init_path_str.format(state)
+                for state_in_path in path2:
+                    yield push_init_path_str.format(state_in_path)
                 if state_dict[dst_state][-1]:
                     yield dispatch_init_str
 

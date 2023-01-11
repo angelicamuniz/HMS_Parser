@@ -879,12 +879,12 @@ def transitions2_def():
             if children_lst:
                 yield "\t\texit_inner_states();\t\t\t\\\n"
 
-            for state in path1[::-1]:
+            for state_in_path in path1[::-1]:
                 yield pop_exit_path_str
             if (not path1 or not path2) and external_trans:
                 yield tran_ext_exit_entry_str
-            for state in path2:
-                yield push_init_path_str.format(state)
+            for state_in_path in path2:
+                yield push_init_path_str.format(state_in_path)
             if state_dict[dst_state][-1]:
                 yield dispatch_init_str
 

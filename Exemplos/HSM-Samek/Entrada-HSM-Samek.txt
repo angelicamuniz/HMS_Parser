@@ -9,7 +9,7 @@ state s {
 		[*] -> s11 :
 		
 		-> s : D ["guard1()"] / "action1()"
-		-> s11 : B
+		-> local s11 : B
 		-> s1 : A
 		-> s211 : F
 		-> s2 : C
@@ -31,7 +31,7 @@ state s {
 			[*] -> s211 :
 			
 			-> s11 : G
-			-> s211 : B
+			-> local s211 : B
 			-> s21 : A
 			
 			state s211{

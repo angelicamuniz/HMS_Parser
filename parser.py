@@ -5,11 +5,13 @@ import lark
 
 # Definição da gramática:
 grammar = """root: (state | transition | initial_transition)*
-state: "state" STATE "{" (state | transition | initial_transition | internal_transition | local_transition)* "}"
+state: "state" STATE "{" (state | transition | initial_transition | internal_transition | local_transition | behavior_entry | behavior_exit)* "}"
 initial_transition: ENDPOINT "->" STATE ":" ("[" GUARD "]")? ("/" BEHAVIOR)?
 local_transition: (STATE)? "->"  "local" (STATE | ENDPOINT) ":" (TRIGGER ("," TRIGGER)*)? ("[" GUARD "]")? ("/" BEHAVIOR)?
 transition: (STATE)? "->" (STATE | ENDPOINT) ":" (TRIGGER ("," TRIGGER)*) ("[" GUARD "]")? ("/" BEHAVIOR)?
 internal_transition: ":" TRIGGER (("," TRIGGER)*)? ("[" GUARD "]")? ("/" BEHAVIOR)?
+behavior_entry: "ENTRY" BEHAVIOR
+behavior_exit: "EXIT" BEHAVIOR
 
 STATE: CNAME
 TRIGGER: CNAME
@@ -197,6 +199,12 @@ def parse_initial_tran(a, transitions):
     # print("TRANSITION: {} -> {}: {}{}".format(state1, state2, ", ".join(triggers),
     #                                           " [{}] / {}".format(guard, behavior)))
 
+def parse_behavior_entry(a, state_dict):
+    pass
+
+def parse_behavior_exit(a, state_dict):
+    pass
+
 def parse_transitions(a, parent, state_dict):
     if a.data == "state":
         for el in a.children[1:]:
@@ -222,6 +230,10 @@ def parse_transitions(a, parent, state_dict):
             parse_initial_tran(a, initial_state[0])
         else:
             parse_initial_tran(a, state_dict[parent][0])
+    elif a.data == "behavior_entry":
+        parse_behavior_entry(a, state_dict[parent][3])
+    elif a.data == "behavior_exit":
+        parse_behavior_exit(a, state_dict[parent][3])
 
 for child in tree.children:
     parse_transitions(child, "[*]", state_dict)
@@ -487,15 +499,23 @@ event_list = list(set(ev for d1, d2, d3, d4, lst
                       in state_dict.values()
                       for ev in d2))
 
-event_header_str = """#include "event.h"
+event_header_str = """#ifndef HSM_H
+#define HSM_H
+
+#include "sm.h"
+#include "event.h"
+"""
+
+hsmc_header_str = """#include "event.h"
 #include "sm.h"
 #include "transitions.h"
 #include "guardandactions.h"
 #include "bsp.h"
+#include "hsm.h"
 #include <stdio.h>
-#include <pthread.h>
-#include <stdint.h>
 """
+
+
 event_enum_begin_str = """enum {{
     {} = USER_EVENT,
 """
@@ -505,11 +525,16 @@ event_enum_end_str = """};
 
 """
 
-guardandactions_header_str = """#ifndef GUARDANDTRANSITIONS_H
+guardandactionsh_header_str = """#ifndef GUARDANDTRANSITIONS_H
 #define GUARDANDTRANSITIONS_H
 """
 
+guardandactionsc_header_str = """#include "guardandactions.h"
+#include <stdio.h>
+"""
+
 guardandactions_end_str = """
+
 #endif
 """
 
@@ -523,65 +548,70 @@ cb_status init_cb(event_t ev)
 
 """
 
-cb_definition_begin_str = """cb_status {}_cb(event_t ev)
+cb_definition_begin_str = """cb_status {0}_cb(event_t ev)
 {{
     switch(ev) {{
     case ENTRY_EVENT:
+    	printf("ENTRY_EVENT..{0}\\n");
         return EVENT_HANDLED;
     case EXIT_EVENT:
+    	printf("EXIT_EVENT..{0}\\n");
         return EVENT_HANDLED;
 """
 cb_definition_body1_str = """    case INIT_EVENT:
-"""
-cb_definition_body2_str = """    case EVENT_{}:
-"""
-cb_definition_body3_str = """
-        {}_{}_tran();
-        return EVENT_HANDLED;
+    	printf("INIT_EVENT..{}\\n");
 """
 
-cb_definition_body4_str = """    case {}:
-        if ({}) {{
-            {};
-            {};
+cb_definition_body4_str = """    case {0}:
+    	printf("EVENT..{0}\\n");
+        if ({1}) {{
+            {2};
+            {3};
             return EVENT_HANDLED;
         }}
         break;
 """
 
-cb_definition_body42_str = """    case {}:
-        if ({}) {{
-            {};
+cb_definition_body42_str = """    case {0}:
+    	printf("EVENT..{0}\\n");
+        if ({1}) {{
+            {2};
             return EVENT_HANDLED;
         }}
-"""
-
-cb_definition_body5_str = """    case {}:
-        if ({}) {{
-            {};
-            return EVENT_HANDLED;
-        }}
-"""
-
-
-cb_definition_body52_str = """    case {}:
-        {};
-        return EVENT_HANDLED;
-"""
-
-cb_definition_body6_str = """    case {}:
-        {};
-        {};
-        return EVENT_HANDLED;
         break;
 """
 
-cb_definition_body62_str = """    case {}:
-        {};
+cb_definition_body5_str = """    case {0}:
+    	printf("EVENT..{0}\\n");
+        if ({1}) {{
+            {2};
+            return EVENT_HANDLED;
+        }}
+        break;
+"""
+
+
+cb_definition_body52_str = """    case {0}:
+    	printf("EVENT..{0}\\n");
+        {1};
         return EVENT_HANDLED;
 """
-cb_case_statement_str = """    case {}:
-        {}
+
+cb_definition_body6_str = """    case {0}:
+    	printf("EVENT..{0}\\n");
+        {1};
+        {2};
+        return EVENT_HANDLED;
+"""
+
+cb_definition_body62_str = """    case {0}:
+    	printf("EVENT..{0}\\n");
+        {1};
+        return EVENT_HANDLED;
+"""
+cb_case_statement_str = """    case {0}:
+    	printf("EVENT..{0}\\n");
+        {1}
         break;
 """
 
@@ -614,22 +644,38 @@ cb_init_body2_str = """            {};
 """
 
 cb_guard_functions_definitions_str = """
-int {}
+int {0}
 {{
     /* Desenvolva aqui sua funcao.*/
-    return 1;
+    printf("GC: {0}\\n");
+    return 0;
 }}
 
 """
 
 cb_action_functions_definitions_str = """
-int {}
+int {0}
 {{
     /* Desenvolva aqui sua funcao.*/
+    printf("ACTION: {0}\\n");
     return 1;
 }}
 
 """
+
+
+functions_declarations_str = """
+int {};"""
+
+
+int_gc_str = """
+
+/* Guard Conditions: */"""
+
+
+int_actions_str = """
+
+/* Actions: */"""
 
 #
 # Definimos agora os geradores que serão
@@ -638,8 +684,6 @@ int {}
 
 def cb_guard_definitions_def(guard_list):
     for gc in guard_list:
-        print ('GC: ',gc)
-        print ('Type GC: ', type(gc))
         yield cb_guard_functions_definitions_str.format(gc)
 
 
@@ -647,6 +691,9 @@ def cb_actions_definitions_def(behavior_list):
     for action in behavior_list:
         yield cb_action_functions_definitions_str.format(action)
 
+def functions_declarations_def(guard_list):
+    for function in guard_list:
+        yield functions_declarations_str.format(function)
 
 
 def events_def(event_list):
@@ -663,7 +710,9 @@ events enum"""
 def cb_declarations_def(state_list):
     """Generator dunction to generate the code lines for declaring the
 state callback functions"""
-    return (cb_declaration_str.format(state) for state in state_list)
+    yield "cb_status init_cb(event_t ev);\n"
+    for state in state_list:
+        yield cb_declaration_str.format(state) 
 
 
 def cb_definitions_def(state_dict):
@@ -1040,7 +1089,7 @@ eventh_str="""#ifndef EVENTS_H
 
 #include <stdint.h>
 
-typedef uint16_t event_t;
+typedef uint32_t event_t;
 
 event_t wait_for_events(void);
 event_t test_for_event(event_t);
@@ -1053,7 +1102,7 @@ extern volatile event_t _events;
                 leave_critical_region();        \\
         } while (0)
 
-#define MAX_EVENTS 16
+#define MAX_EVENTS 32
 
 enum {
     EVENT0 = 0,
@@ -1071,7 +1120,23 @@ enum {
     EVENT12,
     EVENT13,
     EVENT14,
-    EVENT15
+    EVENT15,
+    EVENT16,
+    EVENT17,
+    EVENT18,
+    EVENT19,
+    EVENT20,
+    EVENT21,
+    EVENT22,
+    EVENT23,
+    EVENT24,
+    EVENT25,
+    EVENT26,
+    EVENT27,
+    EVENT28,
+    EVENT29,
+    EVENT30,
+    EVENT31
 };
 
 #endif /* EVENTS_H */
@@ -1109,7 +1174,8 @@ event_t wait_for_events(void)
 }
 """
 
-intmain_str=""""""
+hsmh_bottom_str="""
+#endif"""
 
 bsph_str="""#ifndef BSP_H
 #define BSP_H
@@ -1169,23 +1235,123 @@ void leave_critical_region()
 }
 """
 
-with open('main_hsm.c', 'w') as f:
+main_linuxc_top_str = """#include "hsm.h"
+#include "sm.h"
+#include "bsp_linux.h"
+#include <stdio.h>
+#include <pthread.h>
+#include <stdint.h>
+
+pthread_mutex_t handling_mutex;
+pthread_cond_t handling_cv;
+
+
+void *event_thread(void *vargp)
+{
+        event_t ev;
+
+        while (1) {
+                ev = wait_for_events();
+                if (ev == EMPTY_EVENT)
+                        break;
+                printf("\\n");
+                dispatch_event(ev);
+                pthread_mutex_lock(&handling_mutex);
+                pthread_cond_signal(&handling_cv);
+                pthread_mutex_unlock(&handling_mutex);
+        }
+
+        return NULL;
+}
+
+
+int main(int argc, char* argv[])
+{
+        char *ptr;
+        pthread_t tid;
+
+        if (argc < 2) {
+                fprintf(stderr, "Usage: %s inputs\\n", argv[0]);
+                return -1;
+        }
+
+        pthread_mutex_init(&handling_mutex, 0);
+        pthread_cond_init(&handling_cv, 0);
+        pthread_create(&tid, NULL, event_thread, NULL);
+
+        init_machine(init_cb);
+        ptr = argv[1];
+        while(*ptr) {
+                switch (*ptr++) {
+                """
+
+main_linuxc_bottom_str = """
+                default:
+                        set_event(USER_EVENT);
+                        /* continue; */
+                }
+                pthread_mutex_lock(&handling_mutex);
+                pthread_cond_wait(&handling_cv, &handling_mutex);
+                pthread_mutex_unlock(&handling_mutex);
+        }
+        printf("\\n");
+
+        set_event(EMPTY_EVENT);
+        pthread_join(tid, NULL);
+
+        return 0;
+}
+"""
+
+body_case_main_linuxc_str = """
+                case '{}':
+                case '{}':
+                        set_event({});
+                        break;"""
+
+ABC_list = ['A', 'B', 'C', 'D', 'E', 'F', 'G', 'H', 'I', 'J', 'K', 'L', 'M', 'N', 'O', 'P', 'Q', 'R', 'S', 'T', 'U', 'V', 'W', 'X', 'Y', 'Z']
+abc_list = ['a', 'b', 'c', 'd', 'e', 'f', 'g', 'h', 'i', 'j', 'k', 'l', 'm', 'n', 'o', 'p', 'q', 'r', 's', 't', 'u', 'v', 'w', 'x', 'y', 'z']
+
+def completing_body_case_main_linuxc_str(event_list, ABC_list, abc_list):
+    case_events_tuple = list(zip(ABC_list, abc_list, event_list))
+
+    for event_tuple in case_events_tuple:
+        yield (body_case_main_linuxc_str.format(event_tuple[0], event_tuple[1], event_tuple[2]))
+
+def completing_case_main_linuxc_str(body_case_main):
+    body_main_intermediary = ""
+    for item in body_case_main:
+        body_main_intermediary = body_main_intermediary + item
+    return body_main_intermediary
+
+# Gerando arquivos hsm de definição e descrição da máquina de estados
+with open('hsm.h', 'w') as f:
     events_seq = events_def(event_list)
     cb_decl_seq = cb_declarations_def(state_dict.keys())
+    f.writelines(chain(events_seq, cb_decl_seq, hsmh_bottom_str))
+
+with open('hsm.c', 'w') as f:
     cb_def_seq = cb_definitions_def(state_dict)
-    f.writelines(chain(events_seq, cb_decl_seq, cb_def_seq, intmain_str))
+    f.writelines(chain(hsmc_header_str, cb_def_seq))
 
-
+# Gerando arquivo transitions de descrição das transições
 with open('transitions.h', 'w') as f:
     transitions1_seq = transitions1_def()
-    cb_decl_seq = cb_declarations_def(state_dict.keys())
     transitions2_seq = transitions2_def()
-    f.writelines(chain(transitions1_seq, cb_decl_seq, transitions2_seq,  tran_endfile_str))
+    f.writelines(chain(transitions1_seq, transitions2_seq,  tran_endfile_str))
 
-with open('guardandactions.h', 'w') as f:
+# Gerando arquivos guard and actions de definição e descrição das condições de guarda e ações
+with open('guardandactions-esqueleto.c', 'w') as f:
     functions_gc = cb_guard_definitions_def(guard_list)
     functions_actions = cb_actions_definitions_def(behavior_list)
-    f.writelines(chain(guardandactions_header_str,functions_gc, functions_actions,guardandactions_end_str))
+    f.writelines(chain(guardandactionsc_header_str, int_gc_str, functions_gc, int_actions_str, functions_actions))
+
+
+with open('guardandactions.h', 'w') as f:
+    functions_gc = functions_declarations_def(guard_list)
+    functions_actions = functions_declarations_def(behavior_list)
+    f.writelines(chain(guardandactionsh_header_str, int_gc_str, functions_gc, int_actions_str, functions_actions, guardandactions_end_str))
+
 
 with open('sm.h', 'w') as f:
     f.writelines(smh_str)
@@ -1211,8 +1377,11 @@ with open('bsp_linux.h',  'w') as f:
 with open('bsp_linux.c',  'w') as f:
     f.writelines(bsp_linuxc_str)
 
-print('guard list: ', guard_list)
-print('behavior list: ',behavior_list)
+# Gerando arquivos para testar a máquina no linux
+with open('main_linux.c',  'w') as f:
+    body_case_main = completing_body_case_main_linuxc_str(event_list, ABC_list, abc_list)
+    body_main = completing_case_main_linuxc_str(body_case_main)
+    f.writelines(chain(main_linuxc_top_str, body_main, main_linuxc_bottom_str))
 
 
 

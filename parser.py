@@ -5,11 +5,13 @@ import lark
 
 # Definição da gramática:
 grammar = """root: (state | transition | initial_transition)*
-state: "state" STATE "{" (state | transition | initial_transition | internal_transition | local_transition)* "}"
+state: "state" STATE "{" (state | transition | initial_transition | internal_transition | local_transition | behavior_entry | behavior_exit)* "}"
 initial_transition: ENDPOINT "->" STATE ":" ("[" GUARD "]")? ("/" BEHAVIOR)?
 local_transition: (STATE)? "->"  "local" (STATE | ENDPOINT) ":" (TRIGGER ("," TRIGGER)*)? ("[" GUARD "]")? ("/" BEHAVIOR)?
 transition: (STATE)? "->" (STATE | ENDPOINT) ":" (TRIGGER ("," TRIGGER)*) ("[" GUARD "]")? ("/" BEHAVIOR)?
 internal_transition: ":" TRIGGER (("," TRIGGER)*)? ("[" GUARD "]")? ("/" BEHAVIOR)?
+behavior_entry: "ENTRY" BEHAVIOR
+behavior_exit: "EXIT" BEHAVIOR
 
 STATE: CNAME
 TRIGGER: CNAME
@@ -82,6 +84,9 @@ else:
 tree = parser.parse(text)
 # print(tree.pretty())
 
+guard_list      = set()
+behavior_list   = set()
+
 def parse_states(a, parent, state_dict, bottom_up_state_dict):
     if a.data == "state":
         state, *lst = a.children
@@ -123,19 +128,21 @@ def parse_external_local_tran(a, parent, transitions):
         elif el.type == "GUARD":
             if not guard:
                 guard = el.value.strip("\"")
+                guard_list.add(guard)
             else:
                 print("ERROR: more than one guard condition ({})!".format(el.value))
                 sys.exit(-1)
         elif el.type == "BEHAVIOR":
             if not behavior:
                 behavior = el.value.strip("\"")
+                behavior_list.add(behavior)
             else:
                 print("ERROR: more than one behavior ({})!".format(el.value))
                 sys.exit(-1)
     if parent == "[*]":
         return
     for trigger in triggers:
-        transitions[(trigger, guard)] = (state2, behavior)
+        transitions.setdefault(trigger, []).append((state2, behavior, guard))
     print("TRANSITION: {} -> {}: {}{}".format(state1, state2, ", ".join(triggers),
                                               " [{}] / {}".format(guard, behavior)))
 
@@ -149,12 +156,14 @@ def parse_internal_tran(a, parent, transitions):
         elif el.type == "GUARD":
             if not guard:
                 guard = el.value.strip("\"")
+                guard_list.add(guard)
             else:
                 print("ERROR: more than one guard condition ({})!".format(el.value))
                 sys.exit(-1)
         elif el.type == "BEHAVIOR":
             if not behavior:
                 behavior = el.value.strip("\"")
+                behavior_list.add(behavior)
             else:
                 print("ERROR: more than one behavior ({})!".format(el.value))
                 sys.exit(-1)
@@ -175,18 +184,26 @@ def parse_initial_tran(a, transitions):
         if el.type == "GUARD":
             if not guard:
                 guard = el.value.strip("\"")
+                guard_list.add(guard)
             else:
                 print("ERROR: more than one guard condition ({})!".format(el.value))
                 sys.exit(-1)
         elif el.type == "BEHAVIOR":
             if not behavior:
                 behavior = el.value.strip("\"")
+                behavior_list.add(behavior)
             else:
                 print("ERROR: more than one behavior ({})!".format(el.value))
                 sys.exit(-1)
     transitions[guard] = (state, behavior)
     # print("TRANSITION: {} -> {}: {}{}".format(state1, state2, ", ".join(triggers),
     #                                           " [{}] / {}".format(guard, behavior)))
+
+def parse_behavior_entry(a, state_dict):
+    pass
+
+def parse_behavior_exit(a, state_dict):
+    pass
 
 def parse_transitions(a, parent, state_dict):
     if a.data == "state":
@@ -213,6 +230,10 @@ def parse_transitions(a, parent, state_dict):
             parse_initial_tran(a, initial_state[0])
         else:
             parse_initial_tran(a, state_dict[parent][0])
+    elif a.data == "behavior_entry":
+        parse_behavior_entry(a, state_dict[parent][3])
+    elif a.data == "behavior_exit":
+        parse_behavior_exit(a, state_dict[parent][3])
 
 for child in tree.children:
     parse_transitions(child, "[*]", state_dict)
@@ -474,23 +495,27 @@ def pretty(tree, indentacao=""):
 # (contendo {})
 #
 
-guard_list      = []
-behavior_list   = []
-
 event_list = list(set(ev for d1, d2, d3, d4, lst
                       in state_dict.values()
-                      for (ev, gc) in chain(d2, d3, d4)))
+                      for ev in d2))
 
+event_header_str = """#ifndef HSM_H
+#define HSM_H
 
-event_header_str = """#include "event.h"
+#include "sm.h"
+#include "event.h"
+"""
+
+hsmc_header_str = """#include "event.h"
 #include "sm.h"
 #include "transitions.h"
-#include "guard_and_actions.h"
+#include "guardandactions.h"
 #include "bsp.h"
+#include "hsm.h"
 #include <stdio.h>
-#include <pthread.h>
-#include <stdint.h>
 """
+
+
 event_enum_begin_str = """enum {{
     {} = USER_EVENT,
 """
@@ -498,6 +523,19 @@ event_enum_body_str = """    {},
 """
 event_enum_end_str = """};
 
+"""
+
+guardandactionsh_header_str = """#ifndef GUARDANDTRANSITIONS_H
+#define GUARDANDTRANSITIONS_H
+"""
+
+guardandactionsc_header_str = """#include "guardandactions.h"
+#include <stdio.h>
+"""
+
+guardandactions_end_str = """
+
+#endif
 """
 
 cb_declaration_str = "cb_status {}_cb(event_t ev);\n"
@@ -510,61 +548,80 @@ cb_status init_cb(event_t ev)
 
 """
 
-cb_definition_begin_str = """cb_status {}_cb(event_t ev)
+cb_definition_begin_str = """cb_status {0}_cb(event_t ev)
 {{
     switch(ev) {{
     case ENTRY_EVENT:
+    	printf("ENTRY_EVENT..{0}\\n");
         return EVENT_HANDLED;
     case EXIT_EVENT:
+    	printf("EXIT_EVENT..{0}\\n");
         return EVENT_HANDLED;
 """
 cb_definition_body1_str = """    case INIT_EVENT:
-"""
-cb_definition_body2_str = """    case EVENT_{}:
-"""
-cb_definition_body3_str = """
-        {}_{}_tran();
-        return EVENT_HANDLED;
+    	printf("INIT_EVENT..{}\\n");
 """
 
-cb_definition_body4_str = """    case {}:
-        if ({}) {{
-            {};
-            {};
+cb_definition_body4_str = """    case {0}:
+    	printf("EVENT..{0}\\n");
+        if ({1}) {{
+            {2};
+            {3};
             return EVENT_HANDLED;
         }}
+        break;
 """
 
-cb_definition_body42_str = """    case {}:
-        if ({}) {{
-            {};
+cb_definition_body42_str = """    case {0}:
+    	printf("EVENT..{0}\\n");
+        if ({1}) {{
+            {2};
             return EVENT_HANDLED;
         }}
+        break;
 """
 
-cb_definition_body5_str = """    case {}:
-        if ({}) {{
-            {};
+cb_definition_body5_str = """    case {0}:
+    	printf("EVENT..{0}\\n");
+        if ({1}) {{
+            {2};
             return EVENT_HANDLED;
         }}
+        break;
 """
 
 
-cb_definition_body52_str = """    case {}:
-        {};
+cb_definition_body52_str = """    case {0}:
+    	printf("EVENT..{0}\\n");
+        {1};
         return EVENT_HANDLED;
 """
 
-cb_definition_body6_str = """    case {}:
-        {};
-        {};
+cb_definition_body6_str = """    case {0}:
+    	printf("EVENT..{0}\\n");
+        {1};
+        {2};
         return EVENT_HANDLED;
 """
 
-cb_definition_body62_str = """    case {}:
-        {};
+cb_definition_body62_str = """    case {0}:
+    	printf("EVENT..{0}\\n");
+        {1};
         return EVENT_HANDLED;
 """
+cb_case_statement_str = """    case {0}:
+    	printf("EVENT..{0}\\n");
+        {1}
+        break;
+"""
+
+cb_case_body1_str = """if ({}) {{
+            {};
+            return EVENT_HANDLED;
+        }}"""
+
+cb_case_body2_str = """{};
+        return EVENT_HANDLED;"""
 
 cb_definition_end_str = """    }
     return EVENT_NOT_HANDLED;
@@ -587,22 +644,38 @@ cb_init_body2_str = """            {};
 """
 
 cb_guard_functions_definitions_str = """
-int {}
+int {0}
 {{
     /* Desenvolva aqui sua funcao.*/
-    return 1;
+    printf("GC: {0}\\n");
+    return 0;
 }}
 
 """
 
 cb_action_functions_definitions_str = """
-int {}
+int {0}
 {{
     /* Desenvolva aqui sua funcao.*/
+    printf("ACTION: {0}\\n");
     return 1;
 }}
 
 """
+
+
+functions_declarations_str = """
+int {};"""
+
+
+int_gc_str = """
+
+/* Guard Conditions: */"""
+
+
+int_actions_str = """
+
+/* Actions: */"""
 
 #
 # Definimos agora os geradores que serão
@@ -610,14 +683,17 @@ int {}
 #
 
 def cb_guard_definitions_def(guard_list):
-    for gc in set(guard_list):
+    for gc in guard_list:
         yield cb_guard_functions_definitions_str.format(gc)
 
 
 def cb_actions_definitions_def(behavior_list):
-    for action in set(behavior_list):
+    for action in behavior_list:
         yield cb_action_functions_definitions_str.format(action)
 
+def functions_declarations_def(guard_list):
+    for function in guard_list:
+        yield functions_declarations_str.format(function)
 
 
 def events_def(event_list):
@@ -634,12 +710,30 @@ events enum"""
 def cb_declarations_def(state_list):
     """Generator dunction to generate the code lines for declaring the
 state callback functions"""
-    return (cb_declaration_str.format(state) for state in state_list)
+    yield "cb_status init_cb(event_t ev);\n"
+    for state in state_list:
+        yield cb_declaration_str.format(state) 
 
 
 def cb_definitions_def(state_dict):
     """Generator function to generate the code lines for defining the
 state callback functions"""
+
+    INDENTATION_SIZE = 4
+
+    def if_gen(gc, action, tran_name):
+        case_statements = []
+        if action:
+            case_statements.append(action)
+        if tran_name:
+            case_statements.append(tran_name)
+        join_str = ";\n" + " "*((3 if gc else 2)*INDENTATION_SIZE)
+        lines = join_str.join(case_statements)
+        if gc:
+            return cb_case_body1_str.format(gc, lines, tran_name)
+        else:
+            return cb_case_body2_str.format(lines, tran_name)
+
     yield cb_header_str
     for state, (d1, d2, d3, d4, lst) in state_dict.items():
         yield cb_definition_begin_str.format(state)
@@ -649,7 +743,6 @@ state callback functions"""
             if len(d1) == 1:
                 final_state, action = d1[""]
                 if action:
-                    behavior_list.append(action)
                     yield cb_init_body1_str.format(action,
                                                tran_init_name_str.format(state, final_state))
                 else:
@@ -661,49 +754,23 @@ state callback functions"""
                                                     tran_init_name_str.format(state, final_state)),
                            "        }"])
                            for gc, (final_state, action) in d1.items() if gc]
-                for gc, (final_state, action) in d1.items():
-                    if gc:
-                        if gc not in guard_list:
-                            guard_list.append(gc)
-                    if action:
-                        if action not in behavior_list:
-                            behavior_list.append(action)
                 ifs_str = " else ".join(ifs_lst)
                 final_state, action = d1[""]
                 ifs_str += " else {{\n{}\n        }}\n".format(cb_init_body2_str.format(action, tran_init_name_str.format(state, final_state)))
                 yield "\t\t" + ifs_str
 
         # Transições externas
-        for (ev, gc), (final_state, action) in d2.items():
-            if gc:
-                if gc not in guard_list:
-                    guard_list.append(gc)
-                if action:
-                    if action not in behavior_list:
-                        behavior_list.append(action)
-                    yield cb_definition_body4_str.format(ev, gc, action,
-                                                 tran_ext_name_str.format(state, final_state))
-                else:
-                    yield cb_definition_body42_str.format(ev, gc,
-                                                 tran_ext_name_str.format(state, final_state))
-            else:
-                if action:
-                    if action not in behavior_list:
-                        behavior_list.append(action)
-                    yield cb_definition_body6_str.format(ev, action,
-                                                 tran_ext_name_str.format(state, final_state))
-                else:
-                    yield cb_definition_body62_str.format(ev,
-                                                 tran_ext_name_str.format(state, final_state))
+        else_join_str = " else "
+        for ev, lst in d2.items():
+            ifs = else_join_str.join(if_gen(gc, action,
+                    tran_ext_name_str.format(state, final_state))
+                for final_state, action, gc in lst)
+            yield cb_case_statement_str.format(ev, ifs)
 
         # Transições locais
         for (ev, gc), (final_state, action) in d3.items():
             if gc:
-                if gc not in guard_list:
-                    guard_list.append(gc)
                 if action:
-                    if action not in behavior_list:
-                        behavior_list.append(action)
                     yield cb_definition_body4_str.format(ev, gc, action,
                                                  tran_local_name_str.format(state, final_state))
                 else:
@@ -711,8 +778,6 @@ state callback functions"""
                                                  tran_local_name_str.format(state, final_state))
             else:
                 if action:
-                    if action not in behavior_list:
-                        behavior_list.append(action)
                     yield cb_definition_body6_str.format(ev, action,
                                                  tran_local_name_str.format(state, final_state))
                 else:
@@ -721,15 +786,10 @@ state callback functions"""
 
         # Transições internas
         for (ev, gc), action in d4.items():
-            if action:
-                if action not in behavior_list:
-                    behavior_list.append(action)
             if gc:
-                if gc not in guard_list:
-                    guard_list.append(gc)
-                yield cb_definition_body5_str.format(ev, gc, action)
+                yield cb_definition_body4_str.format(ev, gc, action)
             else:
-                yield cb_definition_body52_str.format(ev, action)
+                yield cb_definition_body6_str.format(ev, action)
 
         yield cb_definition_end_str
 
@@ -744,7 +804,7 @@ tran_header_str = '''#ifndef TRANSITIONS_H
 
 #include "event.h"
 #include "sm.h"
-#include "guard_and_actions.h"
+#include "guardandactions.h"
 
 '''
 
@@ -861,19 +921,19 @@ def transitions2_def():
             path1a = [el1 for el1, el2 in zip_longest(path1, path2) if el1 and el1 != el2]
             path2 = [el2 for el1, el2 in zip_longest(path1, path2) if el2 and el1 != el2]
             path1 = path1a
-            # print(path1)
-            # print(path2)
+            print(path1)
+            print(path2)
             # print("**********")
 
             if children_lst:
                 yield "\t\texit_inner_states();\t\t\t\\\n"
 
-            for state in path1[::-1]:
+            for state_in_path in path1[::-1]:
                 yield pop_exit_path_str
             if (not path1 or not path2) and external_trans:
                 yield tran_ext_exit_entry_str
-            for state in path2:
-                yield push_init_path_str.format(state)
+            for state_in_path in path2:
+                yield push_init_path_str.format(state_in_path)
             if state_dict[dst_state][-1]:
                 yield dispatch_init_str
 
@@ -897,52 +957,54 @@ def transitions2_def():
     # Gerando transições externas
     external_trans = True
     for state, (_, d2, _, _, children_lst) in state_dict.items():
-        for dst_state, _ in d2.values():
-            print ("Trans Externa: {} -: {}".format(state,  dst_state))
-            yield tran_def_begin_str.format(
-                tran_ext_name_str.format(state, dst_state))
+        print("\n\n=========================\nd2 = {}\n".format(d2))
+        for lst in d2.values():
+            print("lst = {} \n=========================\n\n".format(lst))
+            for dst_state, _, _ in lst:
+                yield tran_def_begin_str.format(
+                    tran_ext_name_str.format(state, dst_state))
 
-            if children_lst:
-                yield "\t\texit_inner_states();\t\t\t\\\n"
+                if children_lst:
+                    yield "\t\texit_inner_states();\t\t\t\\\n"
 
-            path2, cur_state = [], dst_state
-            while cur_state != "[*]":
-                path2.append(cur_state)
-                cur_state = bottom_up_state_dict[cur_state]
-            path2 = path2[::-1]
+                path2, cur_state = [], dst_state
+                while cur_state != "[*]":
+                    path2.append(cur_state)
+                    cur_state = bottom_up_state_dict[cur_state]
+                path2 = path2[::-1]
 
-            path1, cur_state = [], state
-            while cur_state != "[*]":
-                path1.append(cur_state)
-                cur_state = bottom_up_state_dict[cur_state]
-            path1 = path1[::-1]
+                path1, cur_state = [], state
+                while cur_state != "[*]":
+                    path1.append(cur_state)
+                    cur_state = bottom_up_state_dict[cur_state]
+                path1 = path1[::-1]
 
-            print("-----")
-            # print(path1)
-            # print(path2)
-            path1a = [el1 for el1, el2 in zip_longest(path1, path2) if el1 and el1 != el2]
-            path2 = [el2 for el1, el2 in zip_longest(path1, path2) if el2 and el1 != el2]
-            path1 = path1a
-            # print(path1)
-            # print(path2)
-            # print("**********")
+                print("-----")
+                print("Estado inicial: ", state)
+                print("Estado   final: ", dst_state)
+                path1a = [el1 for el1, el2 in zip_longest(path1, path2) if el1 and el1 != el2]
+                path2 = [el2 for el1, el2 in zip_longest(path1, path2) if el2 and el1 != el2]
+                path1 = path1a
+                print(path1)
+                print(path2)
+                # print("**********")
 
-            for state in path1[::-1]:
-                yield pop_exit_path_str
-            if (not path1 or not path2) and external_trans:
-                yield tran_ext_exit_entry_str
-            for state in path2:
-                yield push_init_path_str.format(state)
-            if state_dict[dst_state][-1]:
-                yield dispatch_init_str
+                for state_in_path in path1[::-1]:
+                    yield pop_exit_path_str
+                if (not path1 or not path2) and external_trans:
+                    yield tran_ext_exit_entry_str
+                for state_in_path in path2:
+                    yield push_init_path_str.format(state_in_path)
+                if state_dict[dst_state][-1]:
+                    yield dispatch_init_str
 
 
-            # for el in path1[1:][::-1]:
-            #     yield pop_exit_path_str
+                # for el in path1[1:][::-1]:
+                #     yield pop_exit_path_str
 
-            # parent = bottom_up_state_dict[path1[0]]
+                # parent = bottom_up_state_dict[path1[0]]
 
-            yield tran_end_str
+                yield tran_end_str
 
 
 smh_str = """#ifndef SM_H
@@ -1027,7 +1089,7 @@ eventh_str="""#ifndef EVENTS_H
 
 #include <stdint.h>
 
-typedef uint16_t event_t;
+typedef uint32_t event_t;
 
 event_t wait_for_events(void);
 event_t test_for_event(event_t);
@@ -1040,7 +1102,7 @@ extern volatile event_t _events;
                 leave_critical_region();        \\
         } while (0)
 
-#define MAX_EVENTS 16
+#define MAX_EVENTS 32
 
 enum {
     EVENT0 = 0,
@@ -1058,7 +1120,23 @@ enum {
     EVENT12,
     EVENT13,
     EVENT14,
-    EVENT15
+    EVENT15,
+    EVENT16,
+    EVENT17,
+    EVENT18,
+    EVENT19,
+    EVENT20,
+    EVENT21,
+    EVENT22,
+    EVENT23,
+    EVENT24,
+    EVENT25,
+    EVENT26,
+    EVENT27,
+    EVENT28,
+    EVENT29,
+    EVENT30,
+    EVENT31
 };
 
 #endif /* EVENTS_H */
@@ -1096,7 +1174,8 @@ event_t wait_for_events(void)
 }
 """
 
-intmain_str=""""""
+hsmh_bottom_str="""
+#endif"""
 
 bsph_str="""#ifndef BSP_H
 #define BSP_H
@@ -1156,23 +1235,123 @@ void leave_critical_region()
 }
 """
 
-with open('main_hsm.c', 'w') as f:
+main_linuxc_top_str = """#include "hsm.h"
+#include "sm.h"
+#include "bsp_linux.h"
+#include <stdio.h>
+#include <pthread.h>
+#include <stdint.h>
+
+pthread_mutex_t handling_mutex;
+pthread_cond_t handling_cv;
+
+
+void *event_thread(void *vargp)
+{
+        event_t ev;
+
+        while (1) {
+                ev = wait_for_events();
+                if (ev == EMPTY_EVENT)
+                        break;
+                printf("\\n");
+                dispatch_event(ev);
+                pthread_mutex_lock(&handling_mutex);
+                pthread_cond_signal(&handling_cv);
+                pthread_mutex_unlock(&handling_mutex);
+        }
+
+        return NULL;
+}
+
+
+int main(int argc, char* argv[])
+{
+        char *ptr;
+        pthread_t tid;
+
+        if (argc < 2) {
+                fprintf(stderr, "Usage: %s inputs\\n", argv[0]);
+                return -1;
+        }
+
+        pthread_mutex_init(&handling_mutex, 0);
+        pthread_cond_init(&handling_cv, 0);
+        pthread_create(&tid, NULL, event_thread, NULL);
+
+        init_machine(init_cb);
+        ptr = argv[1];
+        while(*ptr) {
+                switch (*ptr++) {
+                """
+
+main_linuxc_bottom_str = """
+                default:
+                        set_event(USER_EVENT);
+                        /* continue; */
+                }
+                pthread_mutex_lock(&handling_mutex);
+                pthread_cond_wait(&handling_cv, &handling_mutex);
+                pthread_mutex_unlock(&handling_mutex);
+        }
+        printf("\\n");
+
+        set_event(EMPTY_EVENT);
+        pthread_join(tid, NULL);
+
+        return 0;
+}
+"""
+
+body_case_main_linuxc_str = """
+                case '{}':
+                case '{}':
+                        set_event({});
+                        break;"""
+
+ABC_list = ['A', 'B', 'C', 'D', 'E', 'F', 'G', 'H', 'I', 'J', 'K', 'L', 'M', 'N', 'O', 'P', 'Q', 'R', 'S', 'T', 'U', 'V', 'W', 'X', 'Y', 'Z']
+abc_list = ['a', 'b', 'c', 'd', 'e', 'f', 'g', 'h', 'i', 'j', 'k', 'l', 'm', 'n', 'o', 'p', 'q', 'r', 's', 't', 'u', 'v', 'w', 'x', 'y', 'z']
+
+def completing_body_case_main_linuxc_str(event_list, ABC_list, abc_list):
+    case_events_tuple = list(zip(ABC_list, abc_list, event_list))
+
+    for event_tuple in case_events_tuple:
+        yield (body_case_main_linuxc_str.format(event_tuple[0], event_tuple[1], event_tuple[2]))
+
+def completing_case_main_linuxc_str(body_case_main):
+    body_main_intermediary = ""
+    for item in body_case_main:
+        body_main_intermediary = body_main_intermediary + item
+    return body_main_intermediary
+
+# Gerando arquivos hsm de definição e descrição da máquina de estados
+with open('hsm.h', 'w') as f:
     events_seq = events_def(event_list)
     cb_decl_seq = cb_declarations_def(state_dict.keys())
+    f.writelines(chain(events_seq, cb_decl_seq, hsmh_bottom_str))
+
+with open('hsm.c', 'w') as f:
     cb_def_seq = cb_definitions_def(state_dict)
-    f.writelines(chain(events_seq, cb_decl_seq, cb_def_seq, intmain_str))
+    f.writelines(chain(hsmc_header_str, cb_def_seq))
 
-
+# Gerando arquivo transitions de descrição das transições
 with open('transitions.h', 'w') as f:
     transitions1_seq = transitions1_def()
-    cb_decl_seq = cb_declarations_def(state_dict.keys())
     transitions2_seq = transitions2_def()
-    f.writelines(chain(transitions1_seq, cb_decl_seq, transitions2_seq,  tran_endfile_str))
+    f.writelines(chain(transitions1_seq, transitions2_seq,  tran_endfile_str))
 
-with open('guard_and_actions.h', 'w') as f:
+# Gerando arquivos guard and actions de definição e descrição das condições de guarda e ações
+with open('guardandactions-esqueleto.c', 'w') as f:
     functions_gc = cb_guard_definitions_def(guard_list)
     functions_actions = cb_actions_definitions_def(behavior_list)
-    f.writelines(chain(functions_gc, functions_actions))
+    f.writelines(chain(guardandactionsc_header_str, int_gc_str, functions_gc, int_actions_str, functions_actions))
+
+
+with open('guardandactions.h', 'w') as f:
+    functions_gc = functions_declarations_def(guard_list)
+    functions_actions = functions_declarations_def(behavior_list)
+    f.writelines(chain(guardandactionsh_header_str, int_gc_str, functions_gc, int_actions_str, functions_actions, guardandactions_end_str))
+
 
 with open('sm.h', 'w') as f:
     f.writelines(smh_str)
@@ -1198,8 +1377,11 @@ with open('bsp_linux.h',  'w') as f:
 with open('bsp_linux.c',  'w') as f:
     f.writelines(bsp_linuxc_str)
 
-print('guard list: ', guard_list)
-print('behavior list: ',behavior_list)
+# Gerando arquivos para testar a máquina no linux
+with open('main_linux.c',  'w') as f:
+    body_case_main = completing_body_case_main_linuxc_str(event_list, ABC_list, abc_list)
+    body_main = completing_case_main_linuxc_str(body_case_main)
+    f.writelines(chain(main_linuxc_top_str, body_main, main_linuxc_bottom_str))
 
 
 

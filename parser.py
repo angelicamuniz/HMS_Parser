@@ -2,6 +2,7 @@ from itertools import zip_longest
 from itertools import chain
 import sys
 import lark
+use_avr = 1
 
 # Definição da gramática:
 grammar = """root: (state | transition | initial_transition)*
@@ -513,6 +514,17 @@ hsmc_header_str = """#include "event.h"
 #include "bsp.h"
 #include "hsm.h"
 #include <stdio.h>
+#include <Arduino.h>
+#include <avr/pgmspace.h>
+
+char buffer[100];
+""" if use_avr else """#include "event.h"
+#include "sm.h"
+#include "transitions.h"
+#include "guardandactions.h"
+#include "bsp.h"
+#include "hsm.h"
+#include <stdio.h>
 """
 
 
@@ -530,6 +542,12 @@ guardandactionsh_header_str = """#ifndef GUARDANDTRANSITIONS_H
 """
 
 guardandactionsc_header_str = """#include "guardandactions.h"
+#include <stdio.h>
+#include <Arduino.h>
+#include <avr/pgmspace.h>
+
+extern char buffer[100];
+""" if use_avr else """#include "guardandactions.h"
 #include <stdio.h>
 """
 
@@ -549,6 +567,19 @@ cb_status init_cb(event_t ev)
 """
 
 cb_definition_begin_str = """cb_status {0}_cb(event_t ev)
+{{
+	const static char PROGMEM entry_msg[] = "ENTRY_EVENT..{0}";
+	const static char PROGMEM exit_msg[] = "EXIT_EVENT..{0}";
+    switch(ev) {{
+    case ENTRY_EVENT:
+		strcpy_P(buffer, (char *) entry_msg);
+		Serial.println(buffer);
+        return EVENT_HANDLED;
+    case EXIT_EVENT:
+		strcpy_P(buffer, (char *) exit_msg);
+		Serial.println(buffer);
+        return EVENT_HANDLED;
+""" if use_avr else """cb_status {0}_cb(event_t ev)
 {{
     switch(ev) {{
     case ENTRY_EVENT:
@@ -646,6 +677,16 @@ cb_init_body2_str = """            {};
 cb_guard_functions_definitions_str = """
 int {0}
 {{
+    const static char PROGMEM gc_msg[] = "GC: {0}";
+    strcpy_P(buffer, (char *) gc_msg);
+	Serial.println(buffer);
+    /* Desenvolva aqui sua funcao.*/
+    return 0;
+}}
+
+""" if use_avr else """
+int {0}
+{{
     /* Desenvolva aqui sua funcao.*/
     printf("GC: {0}\\n");
     return 0;
@@ -654,6 +695,16 @@ int {0}
 """
 
 cb_action_functions_definitions_str = """
+int {0}
+{{
+    const static char PROGMEM action_msg[] = "ACTION: {0}";
+    strcpy_P(buffer, (char *) action_msg);
+	Serial.println(buffer);
+	/* Desenvolva aqui sua funcao.*/
+    return 1;
+}}
+
+""" if use_avr else """
 int {0}
 {{
     /* Desenvolva aqui sua funcao.*/
@@ -1034,7 +1085,14 @@ typedef cb_t state_t;
 extern state_t *_p_state;
 extern uint8_t _state_stack_len;
 
+#if defined(__cplusplus)
+extern "C"
+{
+#endif
 void init_machine(cb_t init_fun);
+#if defined(__cplusplus)
+}
+#endif
 
 #define dispatch(ev) (*_p_state)(ev)
 #define push_state(st) *++_p_state = (st)
@@ -1091,8 +1149,16 @@ eventh_str="""#ifndef EVENTS_H
 
 typedef uint32_t event_t;
 
+#if defined(__cplusplus)
+extern "C"
+{
+#endif
 event_t wait_for_events(void);
+event_t check_for_events(void);
 event_t test_for_event(event_t);
+#if defined(__cplusplus)
+}
+#endif
 
 extern volatile event_t _events;
 #define set_event(ev)                           \\
@@ -1172,9 +1238,37 @@ event_t wait_for_events(void)
 
 	return ev;
 }
+
+event_t check_for_events(void)
+{
+	uint8_t ev = 0;
+	event_t copy;
+
+	if(_events){
+		for(ev=0, copy=_events; ev<MAX_EVENTS && copy; ev++, copy>>=1)
+			if (copy & 0x1) {
+				enter_critical_region();
+				_events &= ~(1 << ev);
+				leave_critical_region();
+				break;
+			}
+	}
+	return ev;
+}
+"""
+
+hsmh_medium_str="""
+#if defined(__cplusplus)
+extern "C"
+{
+#endif
 """
 
 hsmh_bottom_str="""
+#if defined(__cplusplus)
+}
+#endif
+
 #endif"""
 
 bsph_str="""#ifndef BSP_H
@@ -1235,7 +1329,20 @@ void leave_critical_region()
 }
 """
 
-main_linuxc_top_str = """#include "hsm.h"
+main_linuxc_top_str = """#include "event.h"
+#include "guardandactions.h"
+#include "hsm.h"
+#include "sm.h"
+#include "bsp.h"
+#include "transitions.h"
+
+void verifica_serial()
+{
+  int char_received;
+  char_received = Serial.read();
+  if (char_received > -1){
+    switch (char_received) {
+                """ if use_avr else """#include "hsm.h"
 #include "sm.h"
 #include "bsp_linux.h"
 #include <stdio.h>
@@ -1290,6 +1397,28 @@ main_linuxc_bottom_str = """
                         set_event(USER_EVENT);
                         /* continue; */
                 }
+  }
+}
+
+void setup() {
+  Serial.begin(115200);
+  init_machine(init_cb);
+}
+
+void loop() {
+  event_t ev;
+  verifica_serial();
+  ev = check_for_events();
+  if (ev != 0)
+    dispatch_event(ev);
+}
+
+
+""" if use_avr else """
+                default:
+                        set_event(USER_EVENT);
+                        /* continue; */
+                }
                 pthread_mutex_lock(&handling_mutex);
                 pthread_cond_wait(&handling_cv, &handling_mutex);
                 pthread_mutex_unlock(&handling_mutex);
@@ -1328,9 +1457,9 @@ def completing_case_main_linuxc_str(body_case_main):
 with open('hsm.h', 'w') as f:
     events_seq = events_def(event_list)
     cb_decl_seq = cb_declarations_def(state_dict.keys())
-    f.writelines(chain(events_seq, cb_decl_seq, hsmh_bottom_str))
+    f.writelines(chain(events_seq, hsmh_medium_str, cb_decl_seq, hsmh_bottom_str))
 
-with open('hsm.c', 'w') as f:
+with open('hsm.{}'.format('cpp' if use_avr else 'c'), 'w') as f:
     cb_def_seq = cb_definitions_def(state_dict)
     f.writelines(chain(hsmc_header_str, cb_def_seq))
 
@@ -1341,7 +1470,7 @@ with open('transitions.h', 'w') as f:
     f.writelines(chain(transitions1_seq, transitions2_seq,  tran_endfile_str))
 
 # Gerando arquivos guard and actions de definição e descrição das condições de guarda e ações
-with open('guardandactions-esqueleto.c', 'w') as f:
+with open('guardandactions-esqueleto.{}'.format('cpp' if use_avr else 'c'), 'w') as f:
     functions_gc = cb_guard_definitions_def(guard_list)
     functions_actions = cb_actions_definitions_def(behavior_list)
     f.writelines(chain(guardandactionsc_header_str, int_gc_str, functions_gc, int_actions_str, functions_actions))
@@ -1371,14 +1500,15 @@ with open('bsp.h',  'w') as f:
 with open('bsp_avr.h',  'w') as f:
     f.writelines(bsp_avrh_str)
 
-with open('bsp_linux.h',  'w') as f:
-    f.writelines(bsp_linuxh_str)
+if not use_avr:
+	with open('bsp_linux.h',  'w') as f:
+		f.writelines(bsp_linuxh_str)
 
-with open('bsp_linux.c',  'w') as f:
-    f.writelines(bsp_linuxc_str)
+	with open('bsp_linux.c',  'w') as f:
+		f.writelines(bsp_linuxc_str)
 
 # Gerando arquivos para testar a máquina no linux
-with open('main_linux.c',  'w') as f:
+with open('main_{}.{}'.format('atmega' if use_avr else 'linux', 'ino' if use_avr else 'c'),  'w') as f:
     body_case_main = completing_body_case_main_linuxc_str(event_list, ABC_list, abc_list)
     body_main = completing_case_main_linuxc_str(body_case_main)
     f.writelines(chain(main_linuxc_top_str, body_main, main_linuxc_bottom_str))

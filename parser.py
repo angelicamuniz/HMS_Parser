@@ -590,6 +590,10 @@ cb_definition_begin_str = """cb_status {0}_cb(event_t ev)
         return EVENT_HANDLED;
 """
 cb_definition_body1_str = """    case INIT_EVENT:
+		const static char PROGMEM exit_msg[] = "INIT_EVENT..{}";
+		strcpy_P(buffer, (char *) entry_msg);
+		Serial.println(buffer);
+""" if use_avr else """    case INIT_EVENT:
     	printf("INIT_EVENT..{}\\n");
 """
 

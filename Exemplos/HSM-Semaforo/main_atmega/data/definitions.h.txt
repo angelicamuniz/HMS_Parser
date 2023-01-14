@@ -1,0 +1,24 @@
+// Definição dos pinos de saída
+#define SEM1_VERMELHO	4
+#define SEM1_AMARELO	3
+#define SEM1_VERDE	2
+
+#define SEM2_VERMELHO	5
+#define SEM2_AMARELO	6
+#define SEM2_VERDE	7
+
+#define SEM3_VERMELHO	8
+#define SEM3_VERDE	9
+
+// Definição dos pinos de entrada
+#define AMB1	A0
+#define AMB2	A1
+#define CARRO2	A2
+#define PEDESTRE	A3
+#define MODO	A4
+
+void pins_definitions(){
+    pinMode(SEM1_VERMELHO,	OUTPUT);
+    pinMode(SEM1_AMARELO,	OUTPUT);
+    pinMode(SEM1_VERDE, 	OUTPUT);
+}

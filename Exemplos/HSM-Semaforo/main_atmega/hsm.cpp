@@ -15,13 +15,20 @@ int cont5 = 0;
 int cont10 = 0;
 int cont20 = 0;
 int cont30 = 0;
+int cont_ped = 0;
+bool modnot = false;
 
 void set_TEMPO_TOUT1(){
   cont1++;
+  cont_ped++;
   if (cont1 > TEMPO_TOUT1) {
     Timer1.detachInterrupt();
     set_event(EVENT_TIMEOUT1);
     cont1 = 0;
+  }
+  if (cont_ped > 12*TEMPO_TOUT1){
+    set_event(EVENT_TIMEOUT10);
+    cont_ped = 0;
   }
 }
 
@@ -61,6 +68,45 @@ void set_TEMPO_TOUT30(){
   }
 }
 
+ISR (PCINT1_vect) {
+  delayMicroseconds(15000);
+  // code to execute
+  if (LEIT_AMB1_PRESENTE){
+    set_event(EVENT_AMB1);
+  } else if (LEIT_AMB2_PRESENTE){
+    set_event(EVENT_AMB2);
+  } else if (LEIT_CARRO2_PRESENTE){
+    set_event(EVENT_CARRO2);
+  } else if (LEIT_PEDESTRE_PRESENTE){
+    set_event(EVENT_PEDESTRE);
+  } else if (LEIT_MODO_NOTURNO){
+    set_event(EVENT_TROCA_MODO);
+    modnot = true;
+  } else if (!LEIT_AMB1_PRESENTE){
+    set_event(EVENT_AMB1_LEFT);
+    if (!LEIT_AMB2_PRESENTE)
+      set_event(EVENT_AMB2_LEFT);
+    if (modnot)
+      if (!LEIT_MODO_NOTURNO){
+        set_event(EVENT_TROCA_MODO);
+        modnot = false;
+      }
+  } else if (!LEIT_AMB2_PRESENTE){
+    set_event(EVENT_AMB2_LEFT);
+    if (!LEIT_AMB1_PRESENTE)
+      set_event(EVENT_AMB1_LEFT);
+    if (modnot)
+      if (!LEIT_MODO_NOTURNO){
+        set_event(EVENT_TROCA_MODO);
+        modnot = false;
+      }
+  } else if (!LEIT_MODO_NOTURNO){
+      if (modnot){
+        set_event(EVENT_TROCA_MODO);
+        modnot = false;
+      }
+  }
+}
 
 char buffer[100];
 
@@ -537,8 +583,8 @@ cb_status fn_sem3_pisca_cb(event_t ev)
     case ENTRY_EVENT:
       strcpy_P(buffer, (char *) entry_msg);
       Serial.println(buffer);
-      Timer1.initialize(1000000);
-      Timer1.attachInterrupt(set_TEMPO_TOUT10);
+//      Timer1.initialize(1000000);
+//      Timer1.attachInterrupt(set_TEMPO_TOUT10);
       return EVENT_HANDLED;
     case EXIT_EVENT:
       strcpy_P(buffer, (char *) exit_msg);

@@ -71,6 +71,8 @@ void verifica_serial()
 void setup() {
   Serial.begin(115200);
   init_machine(init_cb);
+  PCICR |= B00000010;
+  PCMSK1 |= B00011111;
 
   //pins_definitions();
 

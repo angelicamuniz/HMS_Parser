@@ -68,45 +68,7 @@ void set_TEMPO_TOUT30(){
   }
 }
 
-ISR (PCINT1_vect) {
-  delayMicroseconds(15000);
-  // code to execute
-  if (LEIT_AMB1_PRESENTE){
-    set_event(EVENT_AMB1);
-  } else if (LEIT_AMB2_PRESENTE){
-    set_event(EVENT_AMB2);
-  } else if (LEIT_CARRO2_PRESENTE){
-    set_event(EVENT_CARRO2);
-  } else if (LEIT_PEDESTRE_PRESENTE){
-    set_event(EVENT_PEDESTRE);
-  } else if (LEIT_MODO_NOTURNO){
-    set_event(EVENT_TROCA_MODO);
-    modnot = true;
-  } else if (!LEIT_AMB1_PRESENTE){
-    set_event(EVENT_AMB1_LEFT);
-    if (!LEIT_AMB2_PRESENTE)
-      set_event(EVENT_AMB2_LEFT);
-    if (modnot)
-      if (!LEIT_MODO_NOTURNO){
-        set_event(EVENT_TROCA_MODO);
-        modnot = false;
-      }
-  } else if (!LEIT_AMB2_PRESENTE){
-    set_event(EVENT_AMB2_LEFT);
-    if (!LEIT_AMB1_PRESENTE)
-      set_event(EVENT_AMB1_LEFT);
-    if (modnot)
-      if (!LEIT_MODO_NOTURNO){
-        set_event(EVENT_TROCA_MODO);
-        modnot = false;
-      }
-  } else if (!LEIT_MODO_NOTURNO){
-      if (modnot){
-        set_event(EVENT_TROCA_MODO);
-        modnot = false;
-      }
-  }
-}
+
 
 char buffer[100];
 

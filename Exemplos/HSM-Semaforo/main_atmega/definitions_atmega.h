@@ -30,8 +30,8 @@
 #define TEMPO_TOUT1     1   //1
 #define TEMPO_TOUT5     2   //5
 #define TEMPO_TOUT10    4   //10
-#define TEMPO_TOUT20    6   //20
-#define TEMPO_TOUT30    8   //30
+#define TEMPO_TOUT20    4   //20
+#define TEMPO_TOUT30    4   //30
 
 // Funcao para chamar no setup()
 //void pins_definitions(){

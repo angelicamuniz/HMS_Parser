@@ -5,6 +5,7 @@
 #include "bsp.h"
 #include "transitions.h"
 #include "definitions_atmega.h"
+#include "PinChangeInterrupt.h"
 
 void verifica_serial()
 {
@@ -68,11 +69,38 @@ void verifica_serial()
   }
 }
 
+void set_amb1(){
+  delayMicroseconds(15000);
+  set_event(EVENT_AMB1);
+}
+void reset_amb1(){
+  delayMicroseconds(15000);
+  set_event(EVENT_AMB1_LEFT);
+}
+void set_amb2(){
+  delayMicroseconds(15000);
+  set_event(EVENT_AMB2);
+}
+void reset_amb2(){
+  delayMicroseconds(15000);
+  set_event(EVENT_AMB2_LEFT);
+}
+void set_carro2(){
+  delayMicroseconds(15000);
+  set_event(EVENT_CARRO2);
+}
+void set_pedestre(){
+  delayMicroseconds(15000);
+  set_event(EVENT_PEDESTRE);
+}
+void set_modo(){
+  delayMicroseconds(15000);
+  set_event(EVENT_TROCA_MODO);
+}
+
 void setup() {
   Serial.begin(115200);
   init_machine(init_cb);
-  PCICR |= B00000010;
-  PCMSK1 |= B00011111;
 
   //pins_definitions();
 
@@ -95,7 +123,15 @@ void setup() {
   pinMode(MODO,     INPUT);
   pinMode(CARRO2,   INPUT);
   pinMode(PEDESTRE, INPUT);
-  
+
+  // Habilitando interrupções externas
+  attachPCINT(digitalPinToPCINT(AMB1), set_amb2, RISING);
+  attachPCINT(digitalPinToPCINT(AMB1), reset_amb1, FALLING);
+  attachPCINT(digitalPinToPCINT(AMB2), set_amb2, RISING);
+  attachPCINT(digitalPinToPCINT(AMB2), reset_amb2, FALLING);
+  attachPCINT(digitalPinToPCINT(CARRO2), set_carro2, RISING);
+  attachPCINT(digitalPinToPCINT(PEDESTRE), set_pedestre, RISING);
+  attachPCINT(digitalPinToPCINT(MODO), set_modo, CHANGE); 
 }
 
 void loop() {

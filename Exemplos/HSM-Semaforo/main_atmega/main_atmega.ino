@@ -71,20 +71,28 @@ void verifica_serial()
 
 void set_amb1(){
   delayMicroseconds(15000);
-  set_event(EVENT_AMB1);
+  if (LEIT_AMB1_PRESENTE)
+    set_event(EVENT_AMB1);
+  else
+    set_event(EVENT_AMB1_LEFT);
 }
-void reset_amb1(){
-  delayMicroseconds(15000);
-  set_event(EVENT_AMB1_LEFT);
-}
+//void reset_amb1(){
+//  delayMicroseconds(15000);
+//  set_event(EVENT_AMB1_LEFT);
+//}
+
 void set_amb2(){
   delayMicroseconds(15000);
-  set_event(EVENT_AMB2);
+  if (LEIT_AMB2_PRESENTE)
+    set_event(EVENT_AMB2);
+  else
+    set_event(EVENT_AMB2_LEFT);
 }
-void reset_amb2(){
-  delayMicroseconds(15000);
-  set_event(EVENT_AMB2_LEFT);
-}
+//void reset_amb2(){
+//  delayMicroseconds(15000);
+//  set_event(EVENT_AMB2_LEFT);
+//}
+
 void set_carro2(){
   delayMicroseconds(15000);
   set_event(EVENT_CARRO2);
@@ -125,10 +133,13 @@ void setup() {
   pinMode(PEDESTRE, INPUT);
 
   // Habilitando interrupções externas
-  attachPCINT(digitalPinToPCINT(AMB1), set_amb2, RISING);
-  attachPCINT(digitalPinToPCINT(AMB1), reset_amb1, FALLING);
-  attachPCINT(digitalPinToPCINT(AMB2), set_amb2, RISING);
-  attachPCINT(digitalPinToPCINT(AMB2), reset_amb2, FALLING);
+  
+  attachPCINT(digitalPinToPCINT(AMB1), set_amb1, CHANGE);
+//  attachPCINT(digitalPinToPCINT(AMB1), reset_amb1, FALLING);
+  
+  attachPCINT(digitalPinToPCINT(AMB2), set_amb2, CHANGE);
+//  attachPCINT(digitalPinToPCINT(AMB2), reset_amb2, FALLING);
+  
   attachPCINT(digitalPinToPCINT(CARRO2), set_carro2, RISING);
   attachPCINT(digitalPinToPCINT(PEDESTRE), set_pedestre, RISING);
   attachPCINT(digitalPinToPCINT(MODO), set_modo, CHANGE); 

@@ -85,6 +85,23 @@ int apaga_verde3()
     return 1;
 }
 
+int acende_vermelho3()
+{
+    const static char PROGMEM action_msg[] = "ACTION: acende_vermelho3()";
+    strcpy_P(buffer, (char *) action_msg);
+  Serial.println(buffer);
+  /* Desenvolva aqui sua funcao.*/
+  digitalWrite(SEM1_VERMELHO, HIGH);
+  digitalWrite(SEM1_AMARELO, LOW);
+  digitalWrite(SEM1_VERDE, LOW);
+  digitalWrite(SEM2_VERMELHO, HIGH);
+  digitalWrite(SEM2_AMARELO, LOW);
+  digitalWrite(SEM2_VERDE, LOW);
+  digitalWrite(SEM3_VERMELHO, HIGH);
+  digitalWrite(SEM3_VERDE, LOW);
+    return 1;
+}
+
 
 int acende_verde3()
 {

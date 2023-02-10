@@ -440,6 +440,7 @@ cb_status fn_sem2_verde_amb2_cb(event_t ev)
     case ENTRY_EVENT:
       strcpy_P(buffer, (char *) entry_msg);
       Serial.println(buffer);
+      acende_verde2();
       return EVENT_HANDLED;
     case EXIT_EVENT:
       strcpy_P(buffer, (char *) exit_msg);
@@ -562,6 +563,7 @@ cb_status fn_sem3_pisca_cb(event_t ev)
       const static char PROGMEM event_msg[] = "EVENT..EVENT_TIMEOUT10";
       strcpy_P(buffer, (char *) event_msg);
       Serial.println(buffer);
+      apaga_verde3();
       if (amb1_presente()) {
         fn_sem3_pisca_fn_sem1_verde_amb1_tran();
         return EVENT_HANDLED;
@@ -624,7 +626,7 @@ cb_status fn_sem3_pisca_off_cb(event_t ev)
       const static char PROGMEM event_msg[] = "EVENT..EVENT_TIMEOUT1";
       strcpy_P(buffer, (char *) event_msg);
       Serial.println(buffer);
-      acende_verde3();
+      acende_vermelho3();
       fn_sem3_pisca_off_fn_sem3_pisca_on_tran();
       return EVENT_HANDLED;
       break;

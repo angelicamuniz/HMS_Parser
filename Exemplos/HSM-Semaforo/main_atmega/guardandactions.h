@@ -12,6 +12,7 @@ int amb2_presente();
 int acende_amarelo2();
 int apaga_verde3();
 int acende_verde3();
+int acende_vermelho3();
 int apaga_amarelos_not();
 int acende_amarelo1();
 int acende_amarelos_not();

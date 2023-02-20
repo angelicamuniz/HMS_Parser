@@ -116,6 +116,7 @@ cb_status fn_sem1_cb(event_t ev)
     case ENTRY_EVENT:
       strcpy_P(buffer, (char *) entry_msg);
       Serial.println(buffer);
+      acende_verde1();
       return EVENT_HANDLED;
     case EXIT_EVENT:
       strcpy_P(buffer, (char *) exit_msg);

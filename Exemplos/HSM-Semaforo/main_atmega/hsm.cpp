@@ -86,6 +86,8 @@ cb_status fn_cb(event_t ev)
     case ENTRY_EVENT:
       strcpy_P(buffer, (char *) entry_msg);
       Serial.println(buffer);
+      if (LEIT_MODO_NOTURNO)
+        set_event(EVENT_TROCA_MODO);
       return EVENT_HANDLED;
     case EXIT_EVENT:
       strcpy_P(buffer, (char *) exit_msg);
@@ -101,7 +103,8 @@ cb_status fn_cb(event_t ev)
       const static char PROGMEM event_msg[] = "EVENT..EVENT_TROCA_MODO";
       strcpy_P(buffer, (char *) event_msg);
       Serial.println(buffer);
-      fn_modonot_tran();
+      if (LEIT_MODO_NOTURNO)
+        fn_modonot_tran();
       return EVENT_HANDLED;
       break;
   }
@@ -659,7 +662,8 @@ cb_status modonot_cb(event_t ev)
       const static char PROGMEM event_msg[] = "EVENT..EVENT_TROCA_MODO";
       strcpy_P(buffer, (char *) event_msg);
       Serial.println(buffer);
-      modonot_fn_tran();
+      if (!LEIT_MODO_NOTURNO)
+        modonot_fn_tran();
       return EVENT_HANDLED;
       break;
   }

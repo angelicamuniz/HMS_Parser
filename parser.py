@@ -2,7 +2,7 @@ from itertools import zip_longest
 from itertools import chain
 import sys
 import lark
-use_avr = 1
+use_avr = 0
 
 # Definição da gramática:
 grammar = """root: (state | transition | initial_transition)*
@@ -30,8 +30,13 @@ ENDPOINT: "[*]"
 parser = lark.Lark(grammar, start="root")
 
 if len(sys.argv) > 1:
-    print("Entrei!", sys.argv[1])
-    with open(sys.argv[1], "rt") as f:
+    try:
+    	(arquivo, arquitetura) = sys.argv[1].split(',')
+    	if (arquitetura == 'avr'):
+    		use_avr = 1
+    except:
+    	arquivo = sys.argv[1]
+    with open(arquivo, "rt") as f:
         text = f.read()
         print(len(text))
 else:

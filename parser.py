@@ -744,16 +744,19 @@ int_actions_str = """
 
 def cb_guard_definitions_def(guard_list):
     for gc in guard_list:
-        yield cb_guard_functions_definitions_str.format(gc)
+    	if ("(" in gc):
+        	yield cb_guard_functions_definitions_str.format(gc)
 
 
 def cb_actions_definitions_def(behavior_list):
     for action in behavior_list:
-        yield cb_action_functions_definitions_str.format(action)
+    	if ("(" in action):
+        	yield cb_action_functions_definitions_str.format(action)
 
 def functions_declarations_def(guard_list):
     for function in guard_list:
-        yield functions_declarations_str.format(function)
+    	if ("(" in function):
+        	yield functions_declarations_str.format(function)
 
 
 def events_def(event_list):

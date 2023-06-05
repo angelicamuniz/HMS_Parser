@@ -563,7 +563,6 @@ guardandactions_end_str = """
 
 cb_declaration_str = "cb_status {}_cb(event_t ev);\n"
 cb_header_str = """
-
 cb_status init_cb(event_t ev)
 {
     top_init_tran();
@@ -728,12 +727,6 @@ int {0}
 functions_declarations_str = """
 int {};"""
 
-bool_compare_declarations_str = """
-int {} = 1;"""
-
-
-bool_compare_initialization_str = """
-extern int {};"""
 
 int_gc_str = """
 
@@ -751,44 +744,17 @@ int_actions_str = """
 
 def cb_guard_definitions_def(guard_list):
     for gc in guard_list:
-    	if ("(" in gc):
-        	yield cb_guard_functions_definitions_str.format(gc)
+        yield cb_guard_functions_definitions_str.format(gc)
 
 
 def cb_actions_definitions_def(behavior_list):
     for action in behavior_list:
-    	if ("(" in action):
-        	yield cb_action_functions_definitions_str.format(action)
+        yield cb_action_functions_definitions_str.format(action)
 
 def functions_declarations_def(guard_list):
     for function in guard_list:
-    	if ("(" in function):
-        	yield functions_declarations_str.format(function)
+        yield functions_declarations_str.format(function)
 
-def bool_declarations_def(guard_list, behavior_list):
-    bool_guard_list = []
-    for bool_compare in guard_list:
-    	if ("(" not in bool_compare):
-        	bool_guard_list.append(bool_compare.split()[0])
-        	yield bool_compare_declarations_str.format(bool_compare.split()[0])
-    
-    for bool_compare in behavior_list:
-    	behavior_it = bool_compare.split()[0]
-    	
-    	if (("(" not in bool_compare) and (behavior_it not in bool_guard_list)):
-        	yield bool_compare_declarations_str.format(bool_compare.split()[0])
-
-def bool_declarations_init(guard_list, behavior_list):
-    bool_guard_list = []
-    for bool_compare in guard_list:
-    	if ("(" not in bool_compare):
-        	bool_guard_list.append(bool_compare.split()[0])
-        	yield bool_compare_initialization_str.format(bool_compare.split()[0])
-    
-    for bool_compare in behavior_list:
-    	behavior_it = bool_compare.split()[0]
-    	if (("(" not in bool_compare) and (behavior_it not in bool_guard_list)):
-        	yield bool_compare_initialization_str.format(bool_compare.split()[0])
 
 def events_def(event_list):
     """Generator function to generate the code lines for defining the
@@ -1504,8 +1470,7 @@ with open('hsm.h', 'w') as f:
 
 with open('hsm.{}'.format('cpp' if use_avr else 'c'), 'w') as f:
     cb_def_seq = cb_definitions_def(state_dict)
-    bool_compare_definitions = bool_declarations_def(guard_list, behavior_list)
-    f.writelines(chain(hsmc_header_str, bool_compare_definitions, cb_def_seq))
+    f.writelines(chain(hsmc_header_str, cb_def_seq))
 
 # Gerando arquivo transitions de descrição das transições
 with open('transitions.h', 'w') as f:
@@ -1523,8 +1488,7 @@ with open('guardandactions-esqueleto.{}'.format('cpp' if use_avr else 'c'), 'w')
 with open('guardandactions.h', 'w') as f:
     functions_gc = functions_declarations_def(guard_list)
     functions_actions = functions_declarations_def(behavior_list)
-    bool_compare_initialization = bool_declarations_init(guard_list, behavior_list)
-    f.writelines(chain(guardandactionsh_header_str, bool_compare_initialization, int_gc_str, functions_gc, int_actions_str, functions_actions, guardandactions_end_str))
+    f.writelines(chain(guardandactionsh_header_str, int_gc_str, functions_gc, int_actions_str, functions_actions, guardandactions_end_str))
 
 
 with open('sm.h', 'w') as f:

@@ -732,6 +732,9 @@ bool_compare_declarations_str = """
 int {} = 1;"""
 
 
+bool_compare_initialization_str = """
+extern int {};"""
+
 int_gc_str = """
 
 /* Guard Conditions: */"""
@@ -771,11 +774,21 @@ def bool_declarations_def(guard_list, behavior_list):
     
     for bool_compare in behavior_list:
     	behavior_it = bool_compare.split()[0]
-    	print("\nbehavior_it =", behavior_it)
-    	print(behavior_it not in bool_guard_list)
+    	
     	if (("(" not in bool_compare) and (behavior_it not in bool_guard_list)):
         	yield bool_compare_declarations_str.format(bool_compare.split()[0])
 
+def bool_declarations_init(guard_list, behavior_list):
+    bool_guard_list = []
+    for bool_compare in guard_list:
+    	if ("(" not in bool_compare):
+        	bool_guard_list.append(bool_compare.split()[0])
+        	yield bool_compare_initialization_str.format(bool_compare.split()[0])
+    
+    for bool_compare in behavior_list:
+    	behavior_it = bool_compare.split()[0]
+    	if (("(" not in bool_compare) and (behavior_it not in bool_guard_list)):
+        	yield bool_compare_initialization_str.format(bool_compare.split()[0])
 
 def events_def(event_list):
     """Generator function to generate the code lines for defining the
@@ -1510,9 +1523,8 @@ with open('guardandactions-esqueleto.{}'.format('cpp' if use_avr else 'c'), 'w')
 with open('guardandactions.h', 'w') as f:
     functions_gc = functions_declarations_def(guard_list)
     functions_actions = functions_declarations_def(behavior_list)
-    
-    
-    f.writelines(chain(guardandactionsh_header_str, int_gc_str, functions_gc, int_actions_str, functions_actions, guardandactions_end_str))
+    bool_compare_initialization = bool_declarations_init(guard_list, behavior_list)
+    f.writelines(chain(guardandactionsh_header_str, bool_compare_initialization, int_gc_str, functions_gc, int_actions_str, functions_actions, guardandactions_end_str))
 
 
 with open('sm.h', 'w') as f:
